@@ -19,7 +19,9 @@ if (fila.length === 0) {
   process.exit(0)
 }
 
-console.log(`\nTop ${fila.length} — ordenado por ganho estimado em REAIS, não por percentual\n`)
+// A coluna mostra o ganho em reais, mas a ORDEM é pelo score: ganho ajustado
+// por nota, volume de vendas e comissão extra. Dizer só "ganho" seria mentira.
+console.log(`\nTop ${fila.length} — ordenado por score (ganho em R$ ajustado por nota, vendas e comissão extra)\n`)
 for (const [i, item] of fila.entries()) {
   const o = item.oferta
   console.log(

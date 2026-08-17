@@ -128,6 +128,36 @@ export function publicadosRecentemente(db: Database.Database, dias = 14): Set<st
   return new Set(linhas.map((l) => l.itemId))
 }
 
+/**
+ * Publicações recentes, no formato que o motor usa para decidir a agenda.
+ * A coluna `canal` guarda o id do destino.
+ */
+export function publicacoesRecentes(
+  db: Database.Database,
+  dias = 30,
+): { itemId: string; destinoId: string; publicadoEm: string }[] {
+  const corte = new Date(Date.now() - dias * 86_400_000).toISOString()
+  return db
+    .prepare(
+      `SELECT item_id AS itemId, canal AS destinoId, publicado_em AS publicadoEm
+       FROM publicacoes WHERE publicado_em >= ? ORDER BY publicado_em DESC`,
+    )
+    .all(corte) as { itemId: string; destinoId: string; publicadoEm: string }[]
+}
+
+/** Itens já publicados NESTE destino — não repetir no mesmo grupo. */
+export function publicadosNoDestino(
+  db: Database.Database,
+  destinoId: string,
+  dias = 30,
+): Set<string> {
+  const corte = new Date(Date.now() - dias * 86_400_000).toISOString()
+  const linhas = db
+    .prepare('SELECT DISTINCT item_id AS itemId FROM publicacoes WHERE canal = ? AND publicado_em >= ?')
+    .all(destinoId, corte) as { itemId: string }[]
+  return new Set(linhas.map((l) => l.itemId))
+}
+
 export function linkSalvo(db: Database.Database, itemId: string, etiqueta: string): string | undefined {
   const l = db
     .prepare('SELECT url FROM links WHERE item_id = ? AND etiqueta = ?')

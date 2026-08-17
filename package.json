@@ -10,7 +10,8 @@
     "coletar": "node --experimental-strip-types src/cli/coletar.ts",
     "fila": "node --experimental-strip-types src/cli/fila.ts",
     "bot": "node --experimental-strip-types src/cli/bot.ts",
-    "site": "node --experimental-strip-types src/cli/site.ts"
+    "site": "node --experimental-strip-types src/cli/site.ts",
+    "motor": "node --experimental-strip-types src/cli/motor.ts"
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",

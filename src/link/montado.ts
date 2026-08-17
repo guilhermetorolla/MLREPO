@@ -19,8 +19,12 @@ import type { LinkProvider, Oferta } from '../tipos.ts'
 export class MontadoProvider implements LinkProvider {
   readonly nome = 'montado'
 
-  constructor(private readonly mattTool: string) {
+  // Sem parameter property: o Node em strip-only mode não suporta.
+  readonly #mattTool: string
+
+  constructor(mattTool: string) {
     if (!mattTool) throw new Error('matt_tool é obrigatório — pegue de um link gerado no painel')
+    this.#mattTool = mattTool
   }
 
   async gerar(ofertas: Oferta[], etiqueta: string): Promise<Map<string, string>> {
@@ -29,7 +33,7 @@ export class MontadoProvider implements LinkProvider {
       if (!o.url) continue
       const u = new URL(o.url)
       u.searchParams.set('matt_word', etiqueta)
-      u.searchParams.set('matt_tool', this.mattTool)
+      u.searchParams.set('matt_tool', this.#mattTool)
       saida.set(o.itemId, u.toString())
     }
     return saida

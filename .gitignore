@@ -14,3 +14,6 @@ data/*.db-wal
 # Perfil do navegador: contém a SESSÃO LOGADA do Mercado Livre.
 # Commitar isso é vazar acesso à conta.
 .browser-profile/
+
+# Configuração de destinos (ids de grupos privados)
+destinos.json

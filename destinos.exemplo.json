@@ -1,0 +1,38 @@
+{
+  "_leia": [
+    "Copie para destinos.json e ajuste. O destinos.json fica fora do git.",
+    "chatId de canal: '@nomedocanal'. De grupo: o id negativo, tipo '-1001234567890'.",
+    "Para descobrir o id de um grupo: adicione o bot ao grupo, mande uma mensagem",
+    "e abra https://api.telegram.org/bot<TOKEN>/getUpdates — o id aparece em chat.id.",
+    "O bot só consegue publicar em grupo onde foi adicionado por um administrador."
+  ],
+
+  "destinos": [
+    {
+      "id": "canal-principal",
+      "chatId": "@seucanal",
+      "nome": "Canal principal",
+      "janelas": ["09:00-12:00", "14:00-21:00"],
+      "limiteDiario": 8,
+      "intervaloMinutos": 60,
+      "ativo": true
+    },
+    {
+      "id": "grupo-promo",
+      "chatId": "-1001234567890",
+      "nome": "Grupo de promoções",
+      "janelas": ["10:00-22:00"],
+      "limiteDiario": 4,
+      "intervaloMinutos": 120,
+      "ativo": false
+    }
+  ],
+
+  "corte": {
+    "ganhoMinimo": 10,
+    "exigirDescontoConfirmado": false,
+    "notaMinima": 4,
+    "vendasMinimas": 100,
+    "precoMaximo": 5000
+  }
+}

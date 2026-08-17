@@ -19,15 +19,20 @@ const LINKBUILDER = 'https://www.mercadolivre.com.br/afiliados/linkbuilder'
 export class LinkbuilderProvider implements LinkProvider {
   readonly nome = 'linkbuilder'
 
-  constructor(private readonly opcoes: { headless?: boolean; loteMax?: number } = {}) {}
+  // Sem parameter property: o Node em strip-only mode não suporta.
+  readonly #opcoes: { headless?: boolean; loteMax?: number }
+
+  constructor(opcoes: { headless?: boolean; loteMax?: number } = {}) {
+    this.#opcoes = opcoes
+  }
 
   async gerar(ofertas: Oferta[], etiqueta: string): Promise<Map<string, string>> {
-    const loteMax = this.opcoes.loteMax ?? 20
+    const loteMax = this.#opcoes.loteMax ?? 20
     const saida = new Map<string, string>()
     if (ofertas.length === 0) return saida
 
     const ctx = await chromium.launchPersistentContext(PERFIL, {
-      headless: this.opcoes.headless ?? false,
+      headless: this.#opcoes.headless ?? false,
       viewport: { width: 1280, height: 900 },
       locale: 'pt-BR',
     })

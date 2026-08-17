@@ -43,7 +43,9 @@ npm run coletar     # lê o feed do hub e salva em data/ofertas.db
 npm run fila        # mostra o ranking no terminal, sem publicar nada
 npm run bot         # manda as ofertas para você aprovar no Telegram
 npm run site        # gera docs/index.html e docs/feed.json
-npm test            # 25 testes
+npm run motor -- --simular   # mostra o que publicaria, sem enviar nada
+npm run motor       # publica de verdade nos destinos liberados pela agenda
+npm test            # 49 testes
 ```
 
 ## Decisões que valem saber
@@ -78,8 +80,9 @@ src/
   telegram.ts      aprovação e publicação
   site/            página estática na identidade visual do ML + feed.json
   link/            os dois caminhos de geração de link
-  cli/             coletar · fila · bot
-test/              25 testes + fixture capturada do feed real
+  motor/           agenda por destino + régua de corte
+  cli/             coletar · fila · bot · site · motor
+test/              49 testes + fixture capturada do feed real
 ```
 
 ## O site
@@ -99,3 +102,41 @@ desenhar uma régua sem lastro.
 Detalhes que custaram bug e viraram teste: preço acima de mil precisa de separador
 (`R$ 8.399,00`), e o desconto **trunca** em vez de arredondar — 199,90 → 78,90 dá 60,53%, e o
 ML exibe 60%; arredondar mostraria 61% e o visitante veria dois números para a mesma oferta.
+
+## O motor de publicação
+
+`npm run motor` faz **uma rodada**: olha cada destino e publica no máximo uma oferta em cada
+um que a agenda liberar. Quem controla o ritmo é a janela de cada destino, não a frequência
+da chamada — rodar de mais não publica de mais.
+
+Agende no macOS com `launchd` (ou `cron`) a cada 15 minutos:
+
+```
+*/15 * * * * cd ~/pessoal/ofertas-ml && /usr/local/bin/npm run motor >> motor.log 2>&1
+```
+
+**Destinos** ficam em `destinos.json` (fora do git — tem id de grupo privado). Copie de
+`destinos.exemplo.json`. Cada destino tem janelas de horário, teto diário e intervalo mínimo
+entre posts. Configuração torta faz o motor recusar subir, em vez de publicar na hora errada.
+
+**Régua de corte**: só vai ao ar sozinho o que passa em ganho mínimo, nota, volume de vendas
+e teto de preço. Na prática, com os dados reais de 17/08, isso reprovou a scooter de
+R$ 1.343,84 de comissão — que lidera o ranking mas não tem nota nem vendas registradas.
+
+O motor **sempre diz por que não publicou**. "Nenhuma oferta passou no corte" vem acompanhado
+do motivo do primeiro item da fila; "fora da janela" informa a que horas abre. Motor automático
+que fica em silêncio é motor que ninguém consegue depurar.
+
+Use `--simular` para ver a decisão sem enviar nada.
+
+### Limites que o motor respeita
+
+Um bot do Telegram só publica onde foi adicionado por um administrador — não existe caminho de
+disparo em massa não consentido, e o projeto não tenta abrir um. O teto diário e o intervalo
+mínimo por destino existem para não cansar a audiência nem tomar restrição da plataforma.
+
+### O que o motor ainda NÃO faz
+
+Não revalida o preço no instante do envio. Se o preço mudou entre a coleta e a publicação, o
+anúncio sai com valor vencido. É o item pendente da Fase 2 e o erro que mais destrói confiança
+em grupo de oferta.

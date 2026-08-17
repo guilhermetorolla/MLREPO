@@ -3,12 +3,18 @@ import type { OfertaPontuada } from './tipos.ts'
 const API = 'https://api.telegram.org/bot'
 
 export class Telegram {
-  constructor(private readonly token: string) {
+  // Campo declarado + atribuição explícita: o Node roda TypeScript em
+  // "strip-only" e NÃO aceita parameter property (`constructor(private x)`).
+  // O tsc aceita, então o erro só aparece na execução.
+  readonly #token: string
+
+  constructor(token: string) {
     if (!token) throw new Error('TELEGRAM_BOT_TOKEN ausente — veja env.exemplo')
+    this.#token = token
   }
 
   private async chamar(metodo: string, corpo: unknown): Promise<any> {
-    const r = await fetch(`${API}${this.token}/${metodo}`, {
+    const r = await fetch(`${API}${this.#token}/${metodo}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(corpo),
