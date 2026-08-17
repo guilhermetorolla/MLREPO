@@ -1,0 +1,23 @@
+{
+  "name": "ofertas-ml",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Curadoria e divulgacao automatizada de ofertas de afiliado do Mercado Livre",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types test/*.test.ts",
+    "coletar": "node --experimental-strip-types src/cli/coletar.ts",
+    "fila": "node --experimental-strip-types src/cli/fila.ts",
+    "bot": "node --experimental-strip-types src/cli/bot.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "playwright": "^1.50.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}

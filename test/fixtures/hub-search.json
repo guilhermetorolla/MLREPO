@@ -1,0 +1,134 @@
+{
+  "_origem": "Captura real de POST /affiliate-program/api/hub/search em 17/08/2026. Estrutura conferida campo a campo no painel logado; valores mantidos, query strings removidas das URLs.",
+  "polycard_client_model": {
+    "polycards": [
+      {
+        "metadata": {
+          "id": "MLB6713010960",
+          "product_id": "MLB18725310",
+          "url": "www.mercadolivre.com.br/creatina-1kg-suplemento-monohidratada-em-po-100-pura-soldiers-nutrition/p/MLB18725310",
+          "card_type": "grid-card",
+          "type": "product",
+          "extra_commission": "true",
+          "brand_commission": "false"
+        },
+        "components": {
+          "0": {
+            "type": "highlight",
+            "id": "highlight",
+            "highlight": { "text": "MAIS VENDIDO" }
+          },
+          "1": {
+            "type": "title",
+            "id": "title",
+            "title": {
+              "text": "Creatina 1kg Suplemento Monohidratada em pó 100% Pura - Soldiers Nutrition",
+              "long_title": false
+            }
+          },
+          "2": {
+            "type": "review_compacted",
+            "id": "review_compacted",
+            "review_compacted": {
+              "text": "{icon_star_fill} {label} {label2}",
+              "alt_text": "Classificação 4.8 de 5 estrelas. Mais de 750mil produtos vendidos.",
+              "values": [
+                { "key": "icon_star_fill", "type": "icon" },
+                { "key": "label", "type": "label", "label": { "text": "4.8" } },
+                { "key": "label2", "type": "label", "label": { "text": "| +750mil vendidos" } }
+              ]
+            }
+          },
+          "3": {
+            "type": "chip",
+            "id": "affiliates_commission_chip",
+            "chip": {
+              "type": "composite",
+              "pill": {
+                "text": "{ganancia} {extra}",
+                "values": [
+                  { "key": "ganancia", "type": "label", "label": { "text": "GANHOS" } },
+                  { "key": "extra", "type": "label", "label": { "text": "EXTRAS" } }
+                ]
+              },
+              "label": { "text": "22%" }
+            }
+          },
+          "4": {
+            "type": "price",
+            "id": "price",
+            "price": {
+              "previous_price": { "value": 199.9, "currency": "BRL" },
+              "current_price": { "value": 78.9, "currency": "BRL" },
+              "discount_label": { "text": "60% OFF" }
+            }
+          }
+        }
+      },
+      {
+        "metadata": {
+          "id": "MLB66686279",
+          "product_id": "MLB66686279",
+          "url": "www.mercadolivre.com.br/relogio-tommy-hilfiger-feminino-pippa-em-aco-prateado-com-fundo-preto/p/MLB66686279",
+          "card_type": "grid-card",
+          "type": "product",
+          "extra_commission": "false",
+          "brand_commission": "false"
+        },
+        "components": {
+          "0": {
+            "type": "title",
+            "id": "title",
+            "title": { "text": "Relógio Tommy Hilfiger Feminino Pippa em Aço Prateado com Fundo Preto" }
+          },
+          "1": {
+            "type": "review_compacted",
+            "id": "review_compacted",
+            "review_compacted": {
+              "values": [
+                { "key": "label", "type": "label", "label": { "text": "5.0" } },
+                { "key": "label2", "type": "label", "label": { "text": "| +100 vendidos" } }
+              ]
+            }
+          },
+          "2": {
+            "type": "chip",
+            "id": "affiliates_commission_chip",
+            "chip": {
+              "type": "composite",
+              "inverted": false,
+              "inline": true,
+              "pill": { "text": "GANHOS 12%" }
+            }
+          },
+          "3": {
+            "type": "price",
+            "id": "price",
+            "price": {
+              "previous_price": { "value": 790, "currency": "BRL" },
+              "current_price": { "value": 509, "currency": "BRL" },
+              "discount_label": { "text": "35% OFF" }
+            }
+          }
+        }
+      },
+      {
+        "metadata": {
+          "id": "MLB-SEM-CHIP",
+          "url": "www.mercadolivre.com.br/item-sem-comissao/p/MLB999",
+          "card_type": "grid-card",
+          "type": "product",
+          "extra_commission": "false"
+        },
+        "components": {
+          "0": { "type": "title", "id": "title", "title": { "text": "Item sem chip de comissão" } },
+          "1": {
+            "type": "price",
+            "id": "price",
+            "price": { "current_price": { "value": 50, "currency": "BRL" } }
+          }
+        }
+      }
+    ]
+  }
+}

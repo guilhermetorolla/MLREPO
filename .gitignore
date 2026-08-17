@@ -1,0 +1,16 @@
+node_modules/
+dist/
+*.log
+
+# Segredos — NUNCA commitar
+.env
+.env.local
+
+# Base de dados local
+data/*.db
+data/*.db-journal
+data/*.db-wal
+
+# Perfil do navegador: contém a SESSÃO LOGADA do Mercado Livre.
+# Commitar isso é vazar acesso à conta.
+.browser-profile/
