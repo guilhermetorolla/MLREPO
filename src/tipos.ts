@@ -20,8 +20,18 @@ export interface Oferta {
   /** Nota de 0 a 5. */
   rating?: number
   categoria?: string
+  /**
+   * ID da foto no CDN do ML (ex.: "894230-MLA111390627295_052026").
+   * Guardamos o id, não a URL: o padrão de URL muda com o tamanho pedido.
+   */
+  imagemId?: string
   /** Quando esta leitura foi feita (ISO). Comissão extra expira. */
   vistoEm: string
+}
+
+/** Monta a URL da foto no CDN. 2X porque a grade é vista em tela retina. */
+export function urlImagem(imagemId: string | undefined): string | undefined {
+  return imagemId ? `https://http2.mlstatic.com/D_NQ_NP_2X_${imagemId}-F.webp` : undefined
 }
 
 /** Menor preço já observado por nós para um item, com quando foi. */

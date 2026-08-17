@@ -42,7 +42,8 @@ A sessão fica em `.browser-profile/` (fora do git — **contém acesso à sua c
 npm run coletar     # lê o feed do hub e salva em data/ofertas.db
 npm run fila        # mostra o ranking no terminal, sem publicar nada
 npm run bot         # manda as ofertas para você aprovar no Telegram
-npm test            # 12 testes
+npm run site        # gera docs/index.html e docs/feed.json
+npm test            # 25 testes
 ```
 
 ## Decisões que valem saber
@@ -75,7 +76,26 @@ src/
   coletor.ts       Playwright com sessão persistente
   db.ts            SQLite: ofertas, histórico de preço, links, publicações
   telegram.ts      aprovação e publicação
+  site/            página estática na identidade visual do ML + feed.json
   link/            os dois caminhos de geração de link
   cli/             coletar · fila · bot
-test/              12 testes + fixture capturada do feed real
+test/              25 testes + fixture capturada do feed real
 ```
+
+## O site
+
+`npm run site` gera `docs/index.html` e `docs/feed.json` a partir do banco.
+
+Visual na linguagem do Mercado Livre — amarelo `#FFE600` na barra, azul `#3483FA` na ação,
+verde `#00A650` no desconto, cards brancos sobre `#EBEBEB` — porque quem chega já sabe ler
+esse padrão. Sem logo do ML e sem nome que sugira relação oficial: o rodapé diz que é site
+independente e que os links são de afiliado.
+
+O que a página tem que uma vitrine comum não tem é a **conferência de preço**: cada card
+mostra onde o preço de hoje cai entre o menor e o maior que já registramos, e o parecer
+correspondente. Com menos de duas leituras ela diz "primeira leitura deste preço" em vez de
+desenhar uma régua sem lastro.
+
+Detalhes que custaram bug e viraram teste: preço acima de mil precisa de separador
+(`R$ 8.399,00`), e o desconto **trunca** em vez de arredondar — 199,90 → 78,90 dá 60,53%, e o
+ML exibe 60%; arredondar mostraria 61% e o visitante veria dois números para a mesma oferta.

@@ -105,6 +105,20 @@ export function historicos(db: Database.Database): Map<string, HistoricoPreco> {
   return new Map(linhas.map((h) => [h.itemId, h]))
 }
 
+/**
+ * Menor e maior preço já observados por item — é o que sustenta a régua do site.
+ * Sem duas leituras não há auditoria possível, e a página diz isso em vez de fingir.
+ */
+export function faixasPreco(db: Database.Database): Map<string, { min: number; max: number; amostras: number }> {
+  const linhas = db
+    .prepare(
+      `SELECT item_id AS itemId, MIN(preco) AS min, MAX(preco) AS max, COUNT(*) AS amostras
+       FROM precos GROUP BY item_id`,
+    )
+    .all() as { itemId: string; min: number; max: number; amostras: number }[]
+  return new Map(linhas.map((l) => [l.itemId, { min: l.min, max: l.max, amostras: l.amostras }]))
+}
+
 /** Itens publicados nos últimos N dias — entram em cooldown. */
 export function publicadosRecentemente(db: Database.Database, dias = 14): Set<string> {
   const corte = new Date(Date.now() - dias * 86_400_000).toISOString()

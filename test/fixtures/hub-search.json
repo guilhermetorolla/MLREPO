@@ -16,7 +16,9 @@
           "0": {
             "type": "highlight",
             "id": "highlight",
-            "highlight": { "text": "MAIS VENDIDO" }
+            "highlight": {
+              "text": "MAIS VENDIDO"
+            }
           },
           "1": {
             "type": "title",
@@ -33,9 +35,24 @@
               "text": "{icon_star_fill} {label} {label2}",
               "alt_text": "Classificação 4.8 de 5 estrelas. Mais de 750mil produtos vendidos.",
               "values": [
-                { "key": "icon_star_fill", "type": "icon" },
-                { "key": "label", "type": "label", "label": { "text": "4.8" } },
-                { "key": "label2", "type": "label", "label": { "text": "| +750mil vendidos" } }
+                {
+                  "key": "icon_star_fill",
+                  "type": "icon"
+                },
+                {
+                  "key": "label",
+                  "type": "label",
+                  "label": {
+                    "text": "4.8"
+                  }
+                },
+                {
+                  "key": "label2",
+                  "type": "label",
+                  "label": {
+                    "text": "| +750mil vendidos"
+                  }
+                }
               ]
             }
           },
@@ -47,22 +64,55 @@
               "pill": {
                 "text": "{ganancia} {extra}",
                 "values": [
-                  { "key": "ganancia", "type": "label", "label": { "text": "GANHOS" } },
-                  { "key": "extra", "type": "label", "label": { "text": "EXTRAS" } }
+                  {
+                    "key": "ganancia",
+                    "type": "label",
+                    "label": {
+                      "text": "GANHOS"
+                    }
+                  },
+                  {
+                    "key": "extra",
+                    "type": "label",
+                    "label": {
+                      "text": "EXTRAS"
+                    }
+                  }
                 ]
               },
-              "label": { "text": "22%" }
+              "label": {
+                "text": "22%"
+              }
             }
           },
           "4": {
             "type": "price",
             "id": "price",
             "price": {
-              "previous_price": { "value": 199.9, "currency": "BRL" },
-              "current_price": { "value": 78.9, "currency": "BRL" },
-              "discount_label": { "text": "60% OFF" }
+              "previous_price": {
+                "value": 199.9,
+                "currency": "BRL"
+              },
+              "current_price": {
+                "value": 78.9,
+                "currency": "BRL"
+              },
+              "discount_label": {
+                "text": "60% OFF"
+              }
             }
           }
+        },
+        "pictures": {
+          "scale": "FILL",
+          "pictures": [
+            {
+              "id": "894230-MLA111390627295_052026"
+            }
+          ],
+          "square": "Q",
+          "alt_text": "Imagem",
+          "overlay": true
         }
       },
       {
@@ -79,15 +129,29 @@
           "0": {
             "type": "title",
             "id": "title",
-            "title": { "text": "Relógio Tommy Hilfiger Feminino Pippa em Aço Prateado com Fundo Preto" }
+            "title": {
+              "text": "Relógio Tommy Hilfiger Feminino Pippa em Aço Prateado com Fundo Preto"
+            }
           },
           "1": {
             "type": "review_compacted",
             "id": "review_compacted",
             "review_compacted": {
               "values": [
-                { "key": "label", "type": "label", "label": { "text": "5.0" } },
-                { "key": "label2", "type": "label", "label": { "text": "| +100 vendidos" } }
+                {
+                  "key": "label",
+                  "type": "label",
+                  "label": {
+                    "text": "5.0"
+                  }
+                },
+                {
+                  "key": "label2",
+                  "type": "label",
+                  "label": {
+                    "text": "| +100 vendidos"
+                  }
+                }
               ]
             }
           },
@@ -98,18 +162,38 @@
               "type": "composite",
               "inverted": false,
               "inline": true,
-              "pill": { "text": "GANHOS 12%" }
+              "pill": {
+                "text": "GANHOS 12%"
+              }
             }
           },
           "3": {
             "type": "price",
             "id": "price",
             "price": {
-              "previous_price": { "value": 790, "currency": "BRL" },
-              "current_price": { "value": 509, "currency": "BRL" },
-              "discount_label": { "text": "35% OFF" }
+              "previous_price": {
+                "value": 790,
+                "currency": "BRL"
+              },
+              "current_price": {
+                "value": 509,
+                "currency": "BRL"
+              },
+              "discount_label": {
+                "text": "35% OFF"
+              }
             }
           }
+        },
+        "pictures": {
+          "scale": "FILL",
+          "pictures": [
+            {
+              "id": "624965-MLA114202300436_082026"
+            }
+          ],
+          "square": "Q",
+          "alt_text": "Imagem"
         }
       },
       {
@@ -121,11 +205,22 @@
           "extra_commission": "false"
         },
         "components": {
-          "0": { "type": "title", "id": "title", "title": { "text": "Item sem chip de comissão" } },
+          "0": {
+            "type": "title",
+            "id": "title",
+            "title": {
+              "text": "Item sem chip de comissão"
+            }
+          },
           "1": {
             "type": "price",
             "id": "price",
-            "price": { "current_price": { "value": 50, "currency": "BRL" } }
+            "price": {
+              "current_price": {
+                "value": 50,
+                "currency": "BRL"
+              }
+            }
           }
         }
       }

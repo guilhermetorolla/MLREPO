@@ -79,6 +79,7 @@ function parsearCard(card: any, vistoEm: string): Oferta | null {
     comissaoExtra: temExtraNoPill || extraNoMetadata,
     vendas: parsearVendas(textoDe('label2')),
     rating: numero(textoDe('label')),
+    imagemId: card?.pictures?.pictures?.[0]?.id || undefined,
     vistoEm,
   }
 }

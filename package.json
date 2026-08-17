@@ -9,7 +9,8 @@
     "test": "node --test --experimental-strip-types test/*.test.ts",
     "coletar": "node --experimental-strip-types src/cli/coletar.ts",
     "fila": "node --experimental-strip-types src/cli/fila.ts",
-    "bot": "node --experimental-strip-types src/cli/bot.ts"
+    "bot": "node --experimental-strip-types src/cli/bot.ts",
+    "site": "node --experimental-strip-types src/cli/site.ts"
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",
