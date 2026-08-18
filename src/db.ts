@@ -27,6 +27,7 @@ function migrar(db: Database.Database): void {
       vendas         INTEGER,
       rating         REAL,
       categoria      TEXT,
+      imagem_id      TEXT,
       visto_em       TEXT NOT NULL
     );
 
@@ -93,18 +94,25 @@ function migrar(db: Database.Database): void {
     );
     CREATE INDEX IF NOT EXISTS idx_pub_item ON publicacoes(item_id);
   `)
+
+  // Bancos criados antes de a foto existir: adiciona a coluna sem perder dados.
+  const colunas = (db.prepare('PRAGMA table_info(ofertas)').all() as { name: string }[]).map((c) => c.name)
+  if (!colunas.includes('imagem_id')) {
+    db.exec('ALTER TABLE ofertas ADD COLUMN imagem_id TEXT')
+  }
 }
 
 export function salvarOfertas(db: Database.Database, ofertas: Oferta[]): void {
   const upsert = db.prepare(`
     INSERT INTO ofertas (item_id, product_id, titulo, url, preco_atual, preco_anterior,
-                         comissao_pct, comissao_extra, vendas, rating, categoria, visto_em)
+                         comissao_pct, comissao_extra, vendas, rating, categoria, imagem_id, visto_em)
     VALUES (@itemId, @productId, @titulo, @url, @precoAtual, @precoAnterior,
-            @comissaoPct, @comissaoExtra, @vendas, @rating, @categoria, @vistoEm)
+            @comissaoPct, @comissaoExtra, @vendas, @rating, @categoria, @imagemId, @vistoEm)
     ON CONFLICT(item_id) DO UPDATE SET
       preco_atual = excluded.preco_atual, preco_anterior = excluded.preco_anterior,
       comissao_pct = excluded.comissao_pct, comissao_extra = excluded.comissao_extra,
-      vendas = excluded.vendas, rating = excluded.rating, visto_em = excluded.visto_em
+      vendas = excluded.vendas, rating = excluded.rating, imagem_id = excluded.imagem_id,
+      visto_em = excluded.visto_em
   `)
   const preco = db.prepare('INSERT INTO precos (item_id, preco, visto_em) VALUES (?, ?, ?)')
 
@@ -122,6 +130,7 @@ export function salvarOfertas(db: Database.Database, ofertas: Oferta[]): void {
         vendas: o.vendas ?? null,
         rating: o.rating ?? null,
         categoria: o.categoria ?? null,
+        imagemId: o.imagemId ?? null,
         vistoEm: o.vistoEm,
       })
       preco.run(o.itemId, o.precoAtual, o.vistoEm)
@@ -224,7 +233,7 @@ export function ofertasSalvas(db: Database.Database): Oferta[] {
       `SELECT item_id AS itemId, product_id AS productId, titulo, url,
               preco_atual AS precoAtual, preco_anterior AS precoAnterior,
               comissao_pct AS comissaoPct, comissao_extra AS comissaoExtra,
-              vendas, rating, categoria, visto_em AS vistoEm
+              vendas, rating, categoria, imagem_id AS imagemId, visto_em AS vistoEm
        FROM ofertas`,
     )
     .all() as any[]
@@ -236,6 +245,7 @@ export function ofertasSalvas(db: Database.Database): Oferta[] {
     vendas: l.vendas ?? undefined,
     rating: l.rating ?? undefined,
     categoria: l.categoria ?? undefined,
+    imagemId: l.imagemId ?? undefined,
   }))
 }
 
