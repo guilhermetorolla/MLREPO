@@ -8,6 +8,8 @@ const dlgAgendar = document.getElementById('dlg-agendar')
 
 let tela = 'fila'
 let destinosCache = []
+let filtro = { busca: '', so: 'todas' }
+let ofertasCache = []
 
 // ─── API ─────────────────────────────────────────────────────────
 
@@ -67,20 +69,51 @@ relogio()
 async function telaFila() {
   const { ofertas, corte } = await api('/fila')
   destinosCache = (await api('/destinos')).destinos
+  ofertasCache = ofertas
 
   const aprovadas = ofertas.filter((o) => o.decisao === 'aprovado').length
   const passam = ofertas.filter((o) => o.passaNoCorte).length
+  const semLink = ofertas.filter((o) => !o.temLink).length
 
   const cabecalho = `
     <h2 class="titulo-secao">Fila de ofertas</h2>
-    <p class="sub">${ofertas.length} na fila · ${passam} passam no corte automático · ${aprovadas} aprovadas por você.
-    Corte atual: ganho ≥ ${brl(corte.ganhoMinimo)}, nota ≥ ${corte.notaMinima ?? '—'}, vendas ≥ ${corte.vendasMinimas ?? '—'}.</p>`
+    <p class="sub">${ofertas.length} na fila · ${passam} passam no corte · ${aprovadas} aprovadas por você${semLink ? ` · ${semLink} ainda sem link` : ''}.
+    Corte: ganho ≥ ${brl(corte.ganhoMinimo)}, nota ≥ ${corte.notaMinima ?? '—'}, vendas ≥ ${corte.vendasMinimas ?? '—'}.</p>
+    <div class="filtros">
+      <input type="search" id="busca" placeholder="buscar por título" value="${esc(filtro.busca)}">
+      ${[
+        ['todas', 'Todas'],
+        ['passam', 'Passam no corte'],
+        ['aprovadas', 'Aprovadas'],
+        ['semlink', 'Sem link'],
+      ]
+        .map(([k, r]) => `<button class="chip ${filtro.so === k ? 'ativo' : ''}" data-filtro="${k}">${r}</button>`)
+        .join('')}
+    </div>`
 
   if (ofertas.length === 0) {
-    return `${cabecalho}<p class="vazio">Nada na fila. Rode <code>npm run coletar</code> para buscar ofertas.</p>`
+    return `${cabecalho}<p class="vazio">Nenhuma oferta na base.<br><br>
+      Use <b>Buscar ofertas no ML</b> ali em cima — ele lê direto do seu hub de afiliado.<br>
+      Se for a primeira vez, rode <code>npm run entrar</code> no terminal para logar uma vez.</p>`
   }
 
-  return cabecalho + ofertas.map(cartaoOferta).join('')
+  const visiveis = aplicarFiltro(ofertas)
+  if (visiveis.length === 0) {
+    return `${cabecalho}<p class="vazio">Nenhuma oferta com esses filtros.</p>`
+  }
+
+  return cabecalho + visiveis.map(cartaoOferta).join('')
+}
+
+function aplicarFiltro(ofertas) {
+  const termo = filtro.busca.trim().toLowerCase()
+  return ofertas.filter((o) => {
+    if (termo && !o.titulo.toLowerCase().includes(termo)) return false
+    if (filtro.so === 'passam') return o.passaNoCorte
+    if (filtro.so === 'aprovadas') return o.decisao === 'aprovado'
+    if (filtro.so === 'semlink') return !o.temLink
+    return true
+  })
 }
 
 function cartaoOferta(o) {
@@ -116,6 +149,14 @@ function cartaoOferta(o) {
       <button class="botao-fraco" data-acao="aprovado">Aprovar</button>
       <button class="botao-perigo" data-acao="rejeitado">Descartar</button>
     </div>
+    ${
+      o.link
+        ? `<div class="linha-link" style="grid-column:1/-1">
+             <span class="link-af">${esc(o.link)}</span>
+             <button class="botao-mini" data-copiar="${esc(o.link)}">Copiar link</button>
+           </div>`
+        : ''
+    }
   </article>`
 }
 
@@ -140,7 +181,10 @@ async function telaAgenda() {
       .map(
         (a) => `<tr>
         <td>${dataHora(a.quando)}</td>
-        <td>${esc(a.itemId)}</td>
+        <td style="display:flex;gap:10px;align-items:center">
+          ${a.imagem ? `<img src="${esc(a.imagem)}" alt="" style="width:38px;height:38px;object-fit:contain;background:#fafafa;border-radius:4px">` : ''}
+          <span>${esc(a.titulo)}${a.preco ? `<br><span style="color:var(--tenue);font-size:12px">${brl(a.preco)}</span>` : ''}</span>
+        </td>
         <td>${esc(a.destinoId)}</td>
         <td>${esc(a.estado)}${a.erro ? ` — ${esc(a.erro)}` : ''}</td>
         <td class="num">${a.estado === 'pendente' ? `<button class="botao-perigo" data-cancelar="${a.id}">Cancelar</button>` : ''}</td>
@@ -203,7 +247,7 @@ async function telaMotor() {
     .map(
       (d) => `<tr>
       <td><b>${esc(d.nome)}</b></td>
-      <td>${d.bloqueio ? `<span class="selo selo-nao">${esc(d.bloqueio)}</span>` : '<span class="selo selo-ok">liberado agora</span>'}</td>
+      <td>${d.bloqueio ? `<span class="selo selo-nao">${esc(d.bloqueio)}</span>` : '<span class="selo selo-ok">liberado agora</span>'}${d.proximaJanela ? `<br><span style="color:var(--tenue);font-size:12px">próxima janela ${esc(d.proximaJanela)}</span>` : ''}</td>
       <td class="num">${d.publicadosHoje}/${d.limiteDiario}</td>
     </tr>`,
     )
@@ -241,7 +285,29 @@ async function telaMotor() {
 
 // ─── Roteamento e eventos ────────────────────────────────────────
 
-const TELAS = { fila: telaFila, agenda: telaAgenda, destinos: telaDestinos, motor: telaMotor }
+async function telaEventos() {
+  const { eventos, errosRecentes } = await api('/eventos')
+  const cabecalho = `
+    <h2 class="titulo-secao">Eventos</h2>
+    <p class="sub">${errosRecentes} ${errosRecentes === 1 ? 'erro' : 'erros'} nas últimas 24h.
+    Toda falha de publicação e de geração de link cai aqui, com o erro cru.</p>`
+
+  if (eventos.length === 0) {
+    return `${cabecalho}<p class="vazio">Nenhum evento ainda.</p>`
+  }
+
+  return `${cabecalho}<div class="tabela">${eventos
+    .map(
+      (e) => `<div class="evento">
+        <span class="quando">${dataHora(e.quando)}</span>
+        <span class="${e.nivel === 'erro' ? 'nivel-erro' : 'nivel-info'}">${esc(e.nivel)}</span>
+        <span>${esc(e.mensagem)}${e.detalhe ? `<br><span class="detalhe">${esc(e.detalhe)}</span>` : ''}</span>
+      </div>`,
+    )
+    .join('')}</div>`
+}
+
+const TELAS = { fila: telaFila, agenda: telaAgenda, destinos: telaDestinos, motor: telaMotor, eventos: telaEventos }
 
 async function render() {
   if (!token()) return pedirToken()
@@ -344,3 +410,115 @@ function abrirAgendar(itemId, titulo) {
 }
 
 render()
+
+// ─── Ações: os botões que fazem coisa ────────────────────────────
+
+const estadoTarefa = document.getElementById('estado-tarefa')
+const logTarefa = document.getElementById('log-tarefa')
+const badgeErros = document.getElementById('badge-erros')
+let vigiando = null
+
+document.querySelectorAll('[data-acao-motor]').forEach((b) =>
+  b.addEventListener('click', async () => {
+    const nome = b.dataset.acaoMotor
+    if (nome === 'publicar' && !confirm('Isso publica de verdade nos destinos liberados. Confirma?')) return
+    try {
+      const { tarefa } = await api(`/acoes/${nome}`, { method: 'POST' })
+      mostrarTarefa(tarefa)
+      vigiar()
+    } catch (e) {
+      estadoTarefa.className = 'estado-tarefa falhou'
+      estadoTarefa.textContent = e.message
+    }
+  }),
+)
+
+function mostrarTarefa(t) {
+  if (!t) {
+    estadoTarefa.textContent = ''
+    return
+  }
+  const rotulos = { rodando: 'rodando…', ok: 'concluído', falhou: 'falhou' }
+  estadoTarefa.className = `estado-tarefa ${t.estado}`
+  estadoTarefa.textContent = `${t.rotulo}: ${rotulos[t.estado] ?? t.estado}`
+  logTarefa.classList.remove('oculto')
+  logTarefa.textContent = t.linhas.join('\n')
+  logTarefa.scrollTop = logTarefa.scrollHeight
+}
+
+function vigiar() {
+  if (vigiando) return
+  vigiando = setInterval(async () => {
+    try {
+      const { tarefa } = await api('/acoes/estado')
+      mostrarTarefa(tarefa)
+      if (!tarefa || tarefa.estado !== 'rodando') {
+        clearInterval(vigiando)
+        vigiando = null
+        atualizarBadge()
+        render() // a tela reflete o que a tarefa mudou
+      }
+    } catch {
+      clearInterval(vigiando)
+      vigiando = null
+    }
+  }, 1500)
+}
+
+async function atualizarBadge() {
+  try {
+    const { errosRecentes } = await api('/eventos')
+    badgeErros.textContent = errosRecentes
+    badgeErros.classList.toggle('oculto', errosRecentes === 0)
+  } catch {
+    /* badge é enfeite: se falhar, não atrapalha o resto */
+  }
+}
+
+// ─── Filtros e copiar link ───────────────────────────────────────
+
+conteudo.addEventListener('input', (ev) => {
+  if (ev.target.id === 'busca') {
+    filtro.busca = ev.target.value
+    const foco = document.activeElement === ev.target
+    render().then(() => {
+      if (foco) {
+        const campo = document.getElementById('busca')
+        campo?.focus()
+        campo?.setSelectionRange(campo.value.length, campo.value.length)
+      }
+    })
+  }
+})
+
+conteudo.addEventListener('click', async (ev) => {
+  const alvo = ev.target
+  if (!(alvo instanceof HTMLElement)) return
+
+  if (alvo.dataset.filtro) {
+    filtro.so = alvo.dataset.filtro
+    return render()
+  }
+
+  if (alvo.dataset.copiar) {
+    try {
+      await navigator.clipboard.writeText(alvo.dataset.copiar)
+      const antes = alvo.textContent
+      alvo.textContent = 'copiado'
+      setTimeout(() => (alvo.textContent = antes), 1200)
+    } catch {
+      alvo.textContent = 'copie manualmente'
+    }
+  }
+})
+
+// Estado inicial das ações e do contador de erros
+api('/acoes/estado')
+  .then(({ tarefa }) => {
+    if (tarefa) {
+      mostrarTarefa(tarefa)
+      if (tarefa.estado === 'rodando') vigiar()
+    }
+  })
+  .catch(() => {})
+atualizarBadge()

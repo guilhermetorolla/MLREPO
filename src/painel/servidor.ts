@@ -18,9 +18,14 @@ import {
   publicadosRecentemente,
   salvarDecisao,
   salvarDestino,
+  contarErrosRecentes,
+  eventos,
+  ofertaPorId,
+  registrarEvento,
   type DestinoLinha,
 } from '../db.ts'
-import { motivoParaEsperar } from '../motor/agenda.ts'
+import { motivoParaEsperar, proximoHorario } from '../motor/agenda.ts'
+import * as tarefas from './tarefas.ts'
 import { aprovado } from '../motor/corte.ts'
 import { CAMINHO_DESTINOS, carregarDestinos } from '../motor/destinos.ts'
 import { CORTE_PADRAO } from '../motor/tipos.ts'
@@ -102,6 +107,7 @@ app.get('/api/fila', async () => {
         decisao: d?.estado ?? null,
         adiadoAte: d?.adiadoAte ?? null,
         jaPublicado: publicados.has(i.oferta.itemId),
+        link: ETIQUETA ? linkSalvo(db, i.oferta.itemId, ETIQUETA) ?? null : null,
         temLink: ETIQUETA ? Boolean(linkSalvo(db, i.oferta.itemId, ETIQUETA)) : false,
         leiturasDePreco: faixa?.amostras ?? 1,
       }
@@ -149,7 +155,18 @@ app.delete('/api/destinos/:id', async (req) => {
 
 // ─── Agendamentos ────────────────────────────────────────────────
 
-app.get('/api/agendamentos', async () => ({ agendamentos: agendamentos(db) }))
+app.get('/api/agendamentos', async () => ({
+  // Junta o produto: a tela mostrava só "MLB6235293422", que não diz nada.
+  agendamentos: agendamentos(db).map((a) => {
+    const o = ofertaPorId(db, a.itemId)
+    return {
+      ...a,
+      titulo: o?.titulo ?? '(oferta saiu da base)',
+      imagem: urlImagem(o?.imagemId),
+      preco: o?.precoAtual ?? null,
+    }
+  }),
+}))
 
 app.post('/api/agendamentos', async (req, reply) => {
   const { itemId, destinoId, quando } = (req.body ?? {}) as Record<string, string>
@@ -194,6 +211,13 @@ app.get('/api/motor/status', async () => {
         pubs,
         agora,
       ) ?? null,
+      proximaJanela: proximoHorario(
+        {
+          id: d.id, chatId: d.chatId, nome: d.nome, janelas: d.janelas,
+          limiteDiario: d.limiteDiario, intervaloMinutos: d.intervaloMinutos, ativo: d.ativo,
+        },
+        agora,
+      ) ?? null,
       publicadosHoje: pubs.filter(
         (p) => p.destinoId === d.id && p.publicadoEm.slice(0, 10) === agora.toISOString().slice(0, 10),
       ).length,
@@ -202,6 +226,34 @@ app.get('/api/motor/status', async () => {
     agendamentosPendentes: agendamentos(db, 'pendente').length,
   }
 })
+
+// ─── Ações (os botões que fazem coisa) ───────────────────────────
+
+const ACOES: Record<string, { rotulo: string; arquivo: string; args?: string[] }> = {
+  coletar: { rotulo: 'Buscar ofertas no Mercado Livre', arquivo: 'coletar.ts' },
+  links: { rotulo: 'Gerar links de afiliado', arquivo: 'links.ts' },
+  simular: { rotulo: 'Simular rodada do motor', arquivo: 'motor.ts', args: ['--simular'] },
+  publicar: { rotulo: 'Rodar motor de verdade', arquivo: 'motor.ts' },
+  site: { rotulo: 'Regerar o site', arquivo: 'site.ts' },
+}
+
+app.post('/api/acoes/:nome', async (req, reply) => {
+  const nome = (req.params as { nome: string }).nome
+  const acao = ACOES[nome]
+  if (!acao) return reply.code(404).send({ erro: `ação "${nome}" não existe` })
+  if (tarefas.ocupado()) {
+    return reply.code(409).send({ erro: 'já tem uma tarefa rodando — espere terminar' })
+  }
+  registrarEvento(db, 'info', 'painel', `ação: ${acao.rotulo}`)
+  return { tarefa: tarefas.iniciar(acao.rotulo, acao.arquivo, acao.args ?? []) }
+})
+
+app.get('/api/acoes/estado', async () => ({ tarefa: tarefas.ultima() ?? null }))
+
+app.get('/api/eventos', async () => ({
+  eventos: eventos(db),
+  errosRecentes: contarErrosRecentes(db),
+}))
 
 // ─── Infra ───────────────────────────────────────────────────────
 

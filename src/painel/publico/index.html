@@ -16,10 +16,23 @@
       <button class="aba" data-tela="agenda">Programados</button>
       <button class="aba" data-tela="destinos">Destinos</button>
       <button class="aba" data-tela="motor">Motor</button>
+      <button class="aba" data-tela="eventos">Eventos <span id="badge-erros" class="badge oculto"></span></button>
     </nav>
     <span class="relogio" id="relogio"></span>
   </div>
 </header>
+
+<section class="acoes-barra">
+  <div class="acoes-interna">
+    <button class="botao" data-acao-motor="coletar">Buscar ofertas no ML</button>
+    <button class="botao-fraco" data-acao-motor="links">Gerar links</button>
+    <button class="botao-fraco" data-acao-motor="simular">Simular rodada</button>
+    <button class="botao-fraco" data-acao-motor="publicar">Publicar agora</button>
+    <button class="botao-fraco" data-acao-motor="site">Regerar site</button>
+    <span id="estado-tarefa" class="estado-tarefa"></span>
+  </div>
+  <pre id="log-tarefa" class="log oculto"></pre>
+</section>
 
 <main id="conteudo"><p class="carregando">Carregando…</p></main>
 

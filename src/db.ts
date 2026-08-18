@@ -85,6 +85,18 @@ function migrar(db: Database.Database): void {
       ativo             INTEGER NOT NULL DEFAULT 1
     );
 
+    -- Diário do motor: o que deu certo e o que falhou, com o erro cru.
+    -- Sem isso o motor automático pode passar dias quebrado em silêncio.
+    CREATE TABLE IF NOT EXISTS eventos (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      quando    TEXT NOT NULL,
+      nivel     TEXT NOT NULL CHECK (nivel IN ('info','erro')),
+      origem    TEXT NOT NULL,
+      mensagem  TEXT NOT NULL,
+      detalhe   TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_eventos_quando ON eventos(quando DESC);
+
     CREATE TABLE IF NOT EXISTS publicacoes (
       item_id       TEXT NOT NULL,
       canal         TEXT NOT NULL,
@@ -384,4 +396,65 @@ export function salvarDestino(db: Database.Database, d: DestinoLinha): void {
 
 export function apagarDestino(db: Database.Database, id: string): void {
   db.prepare('DELETE FROM destinos WHERE id = ?').run(id)
+}
+
+// ─── Eventos (diário do motor) ───────────────────────────────────
+
+export interface Evento {
+  id: number
+  quando: string
+  nivel: 'info' | 'erro'
+  origem: string
+  mensagem: string
+  detalhe?: string
+}
+
+export function registrarEvento(
+  db: Database.Database,
+  nivel: 'info' | 'erro',
+  origem: string,
+  mensagem: string,
+  detalhe?: string,
+): void {
+  db.prepare(
+    'INSERT INTO eventos (quando, nivel, origem, mensagem, detalhe) VALUES (?, ?, ?, ?, ?)',
+  ).run(new Date().toISOString(), nivel, origem, mensagem, detalhe ?? null)
+}
+
+export function eventos(db: Database.Database, limite = 60): Evento[] {
+  return db
+    .prepare('SELECT id, quando, nivel, origem, mensagem, detalhe FROM eventos ORDER BY id DESC LIMIT ?')
+    .all(limite) as Evento[]
+}
+
+export function contarErrosRecentes(db: Database.Database, horas = 24): number {
+  const corte = new Date(Date.now() - horas * 3_600_000).toISOString()
+  const r = db
+    .prepare("SELECT COUNT(*) AS c FROM eventos WHERE nivel = 'erro' AND quando >= ?")
+    .get(corte) as { c: number }
+  return r.c
+}
+
+/** Oferta única por id, para telas que só têm o itemId em mãos. */
+export function ofertaPorId(db: Database.Database, itemId: string): Oferta | undefined {
+  const l = db
+    .prepare(
+      `SELECT item_id AS itemId, product_id AS productId, titulo, url,
+              preco_atual AS precoAtual, preco_anterior AS precoAnterior,
+              comissao_pct AS comissaoPct, comissao_extra AS comissaoExtra,
+              vendas, rating, categoria, imagem_id AS imagemId, visto_em AS vistoEm
+       FROM ofertas WHERE item_id = ?`,
+    )
+    .get(itemId) as any
+  if (!l) return undefined
+  return {
+    ...l,
+    comissaoExtra: Boolean(l.comissaoExtra),
+    productId: l.productId ?? undefined,
+    precoAnterior: l.precoAnterior ?? undefined,
+    vendas: l.vendas ?? undefined,
+    rating: l.rating ?? undefined,
+    categoria: l.categoria ?? undefined,
+    imagemId: l.imagemId ?? undefined,
+  }
 }

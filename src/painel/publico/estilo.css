@@ -144,3 +144,56 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
   .abas { width: 100%; margin-left: 0; overflow-x: auto; }
   .tabela { font-size: 13px; }
 }
+
+/* ─── Barra de ações: o que torna isto um painel, não um relatório ─── */
+.acoes-barra { background: var(--branco); border-bottom: 1px solid var(--linha); }
+.acoes-interna {
+  max-width: 1160px; margin: 0 auto; padding: 12px 16px;
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+}
+.estado-tarefa { font-size: 13px; color: var(--fraco); margin-left: auto; }
+.estado-tarefa.rodando { color: var(--azul); font-weight: 600; }
+.estado-tarefa.ok { color: var(--verde); font-weight: 600; }
+.estado-tarefa.falhou { color: var(--vermelho); font-weight: 600; }
+.log {
+  max-width: 1160px; margin: 0 auto; padding: 12px 16px 16px;
+  background: #1E1E1E; color: #E6E6E6; font-size: 12px; line-height: 1.5;
+  max-height: 260px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+}
+.oculto { display: none !important; }
+
+.badge {
+  background: var(--vermelho); color: #fff; border-radius: 9px;
+  padding: 1px 6px; font-size: 11px; font-weight: 700; margin-left: 4px;
+}
+
+/* Link de afiliado copiável */
+.linha-link { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+.link-af {
+  flex: 1; min-width: 0; font-size: 12px; color: var(--fraco);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  background: #F7F7F7; padding: 5px 8px; border-radius: 4px;
+}
+.botao-mini {
+  border: 0; background: #EFEFEF; color: var(--texto); cursor: pointer;
+  font: inherit; font-size: 12px; padding: 5px 10px; border-radius: 4px; font-weight: 600;
+}
+.botao-mini:hover { background: #E2E2E2; }
+
+/* Filtros da fila */
+.filtros {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px;
+}
+.filtros input[type=search] { max-width: 260px; margin: 0; }
+.chip {
+  border: 1px solid #CFCFCF; background: var(--branco); color: var(--fraco);
+  border-radius: 14px; padding: 5px 12px; font: inherit; font-size: 12px; cursor: pointer;
+}
+.chip.ativo { background: var(--texto); border-color: var(--texto); color: #fff; font-weight: 600; }
+
+.evento { display: grid; grid-template-columns: 130px 70px 1fr; gap: 12px; padding: 9px 14px; border-bottom: 1px solid #F2F2F2; }
+.evento:last-child { border-bottom: 0; }
+.evento .quando { color: var(--tenue); font-size: 12px; }
+.evento .nivel-erro { color: var(--vermelho); font-weight: 600; font-size: 12px; }
+.evento .nivel-info { color: var(--fraco); font-size: 12px; }
+.evento .detalhe { color: var(--fraco); font-size: 12px; }

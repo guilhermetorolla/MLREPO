@@ -10,6 +10,7 @@ import {
   ofertasSalvas,
   publicacoesRecentes,
   publicadosNoDestino,
+  registrarEvento,
   registrarPublicacao,
   salvarLink,
   type DestinoLinha,
@@ -41,6 +42,15 @@ const agora = new Date()
 const seco = process.argv.includes('--simular')
 
 const db = abrir()
+
+// Sem token do Telegram não dá para publicar. Isso NÃO é erro: é o estado
+// normal enquanto o bot não foi criado. Sair em silêncio com código 0 evita
+// que o agendamento do sistema encha o log de exceção a cada 15 minutos.
+if (!seco && !process.env.TELEGRAM_BOT_TOKEN) {
+  console.log('TELEGRAM_BOT_TOKEN ausente — nada a publicar. Configure o .env para ligar o motor.')
+  process.exit(0)
+}
+
 const tg = seco ? undefined : new Telegram(exigir('TELEGRAM_BOT_TOKEN'))
 const etiqueta = exigir('ETIQUETA')
 
@@ -160,9 +170,16 @@ async function publicar(destino: Destino, item: OfertaPontuada, prefixo: string)
     if (seco) {
       console.log(`  ${prefixo}${destino.nome}: [simulação] geraria link de ${item.oferta.itemId}`)
     } else {
-      const novos = await provider.gerar([item.oferta], etiqueta)
-      link = novos.get(item.oferta.itemId)
+      try {
+        const novos = await provider.gerar([item.oferta], etiqueta)
+        link = novos.get(item.oferta.itemId)
+      } catch (e) {
+        registrarEvento(db, 'erro', 'motor', 'falha ao gerar link', `${item.oferta.itemId}: ${(e as Error).message}`)
+        console.error(`  ${prefixo}${destino.nome}: ERRO ao gerar link — ${(e as Error).message}`)
+        return false
+      }
       if (!link) {
+        registrarEvento(db, 'erro', 'motor', 'link não gerado', item.oferta.itemId)
         console.log(`  ${prefixo}${destino.nome}: sem link para ${item.oferta.itemId} — pulando`)
         return false
       }
@@ -184,8 +201,19 @@ async function publicar(destino: Destino, item: OfertaPontuada, prefixo: string)
     return true
   }
 
-  await tg!.publicar(destino.chatId, item, link!)
+  try {
+    await tg!.publicar(destino.chatId, item, link!)
+  } catch (e) {
+    // Falha de publicação PRECISA sobreviver ao fim do processo: sem registro,
+    // o motor automático pode passar dias quebrado sem ninguém perceber.
+    const msg = (e as Error).message
+    registrarEvento(db, 'erro', 'motor', `falha ao publicar em ${destino.nome}`, `${item.oferta.itemId}: ${msg}`)
+    console.error(`  ${prefixo}${destino.nome}: ERRO ao publicar — ${msg}`)
+    return false
+  }
+
   registrarPublicacao(db, item.oferta.itemId, destino.id, item.oferta.precoAtual)
+  registrarEvento(db, 'info', 'motor', `publicado em ${destino.nome}`, rotulo)
   publicados++
   console.log(`  ${prefixo}${destino.nome}: publicado → ${rotulo}`)
   return true
