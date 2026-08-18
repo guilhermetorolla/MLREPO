@@ -46,7 +46,7 @@ npm run site        # gera docs/index.html e docs/feed.json
 npm run motor -- --simular   # mostra o que publicaria, sem enviar nada
 npm run motor       # publica de verdade nos destinos liberados pela agenda
 npm run painel      # painel web em http://localhost:4477
-npm test            # 49 testes
+npm test            # 97 testes
 ```
 
 ## Decisões que valem saber
@@ -83,7 +83,7 @@ src/
   link/            os dois caminhos de geração de link
   motor/           agenda por destino + régua de corte
   cli/             coletar · fila · bot · site · motor
-test/              49 testes + fixture capturada do feed real
+test/              97 testes + fixture capturada do feed real
 ```
 
 ## O site
