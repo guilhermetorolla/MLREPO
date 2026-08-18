@@ -9,6 +9,7 @@
     "test": "node --test --experimental-strip-types test/*.test.ts",
     "coletar": "node --experimental-strip-types src/cli/coletar.ts",
     "fila": "node --experimental-strip-types src/cli/fila.ts",
+    "links": "node --experimental-strip-types src/cli/links.ts",
     "bot": "node --experimental-strip-types src/cli/bot.ts",
     "site": "node --experimental-strip-types src/cli/site.ts",
     "motor": "node --experimental-strip-types src/cli/motor.ts"

@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ofertas conferidas</title>
+<meta name="description" content="Ofertas do Mercado Livre com o preço conferido contra o histórico registrado a cada coleta.">
+<meta name="robots" content="noindex">
+<style>
+:root {
+  --amarelo: #FFE600;
+  --azul: #3483FA;
+  --azul-escuro: #2968C8;
+  --verde: #00A650;
+  --fundo: #EBEBEB;
+  --branco: #FFFFFF;
+  --texto: #333333;
+  --texto-fraco: rgba(0,0,0,.55);
+  --texto-tenue: rgba(0,0,0,.35);
+  --sombra: 0 1px 2px rgba(0,0,0,.12);
+  --sombra-alta: 0 4px 12px rgba(0,0,0,.16);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--texto);
+  font: 400 14px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+.barra { background: var(--amarelo); }
+.barra-interna {
+  max-width: 1200px; margin: 0 auto; padding: 16px 16px 18px;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px;
+}
+.marca { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -.01em; }
+.resumo { margin: 0; font-size: 13px; color: rgba(0,0,0,.62); }
+
+.grade {
+  max-width: 1200px; margin: 0 auto; padding: 20px 16px 40px;
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+}
+
+.cartao {
+  background: var(--branco); border-radius: 6px; box-shadow: var(--sombra);
+  overflow: hidden; display: flex; flex-direction: column;
+}
+.foto {
+  display: grid; place-items: center; aspect-ratio: 1;
+  background: var(--branco); padding: 14px; min-height: 0;
+}
+/* max-* em vez de width/height 100%: com height:100% a imagem impõe a própria
+   altura ao pai e o aspect-ratio é ignorado, desalinhando a grade inteira. */
+.foto img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.semfoto { display: block; width: 100%; height: 100%; background: #f5f5f5; border-radius: 4px; }
+
+.conteudo { padding: 0 16px 16px; display: flex; flex-direction: column; flex: 1; }
+h2 { margin: 0 0 10px; font-size: 14px; font-weight: 400; line-height: 1.3; }
+h2 a { color: var(--texto); text-decoration: none; }
+h2 a:hover { color: var(--azul); }
+
+.antes { margin: 0; font-size: 12px; color: var(--texto-tenue); text-decoration: line-through; min-height: 16px; }
+.agora { margin: 2px 0 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.valor { font-size: 24px; font-weight: 400; letter-spacing: -.02em; }
+.off { font-size: 13px; font-weight: 600; color: var(--verde); }
+
+.social { margin: 8px 0 0; font-size: 12px; color: var(--texto-fraco); display: flex; gap: 10px; }
+.nota::after { content: " ★"; color: var(--azul); }
+
+/* A conferência de preço: o que este site tem e uma vitrine comum não tem. */
+.conferido { margin: 12px 0 14px; padding: 10px 0 0; border-top: 1px solid #ededed; }
+.parecer { margin: 0; font-size: 12px; font-weight: 600; color: var(--texto-fraco); }
+[data-veredito="menor-ja-visto"] .parecer { color: var(--verde); }
+[data-veredito="ja-esteve-menor"] .parecer { color: #C75000; }
+.trilho {
+  position: relative; height: 4px; margin: 8px 0 0; border-radius: 2px;
+  background: linear-gradient(90deg, var(--verde), #E0E0E0);
+}
+.marca-preco {
+  position: absolute; top: -3px; width: 2px; height: 10px;
+  background: var(--texto); border-radius: 1px; transform: translateX(-1px);
+}
+.extremos {
+  display: flex; justify-content: space-between;
+  margin: 5px 0 0; font-size: 11px; color: var(--texto-tenue);
+}
+
+.botao {
+  display: block; margin-top: auto; padding: 10px 12px;
+  background: var(--azul); color: #fff;
+  border-radius: 6px; font-size: 14px; font-weight: 600;
+  text-align: center; text-decoration: none;
+}
+.botao:hover { background: var(--azul-escuro); }
+.cartao:hover { box-shadow: var(--sombra-alta); }
+.botao:focus-visible, h2 a:focus-visible {
+  outline: 2px solid var(--azul); outline-offset: 2px;
+}
+
+footer {
+  max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px;
+  color: var(--texto-fraco); font-size: 12px; line-height: 1.6;
+}
+footer p { margin: 0 0 6px; max-width: 70ch; }
+footer b { color: var(--texto); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .cartao, .botao { transition: box-shadow .15s ease, background .15s ease; }
+}
+@media (max-width: 420px) {
+  .grade { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+  .conteudo { padding: 0 12px 12px; }
+  .valor { font-size: 20px; }
+}
+</style>
+</head>
+<body>
+<header class="barra">
+  <div class="barra-interna">
+    <p class="marca">Ofertas conferidas</p>
+    <p class="resumo">9 ofertas · 0 com histórico de preço · 18 de ago., 08:38</p>
+  </div>
+</header>
+
+<main class="grade">
+<article class="cartao">
+  <a class="foto" href="https://www.mercadolivre.com.br/p/MLB7390723950?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank" tabindex="-1" aria-hidden="true">
+    <span class="semfoto"></span>
+  </a>
+
+  <div class="conteudo">
+    <h2><a href="https://www.mercadolivre.com.br/p/MLB7390723950?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank">Scooters Elétrica Bike X11 Mini 1000w Sem Cnh Autopropelido Vermelho</a></h2>
+
+    <p class="antes">R$ 11.999,00</p>
+    <p class="agora">
+      <span class="valor">R$ 8.399,00</span>
+      <span class="off">30% OFF</span>
+    </p>
+
+    <p class="social">
+      
+      
+    </p>
+
+    <div class="conferido" data-veredito="primeira-leitura">
+      <p class="parecer">Primeira leitura deste preço</p>
+      
+    </div>
+
+    <a class="botao" href="https://www.mercadolivre.com.br/p/MLB7390723950?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank">Ver no Mercado Livre</a>
+  </div>
+</article>
+<article class="cartao">
+  <a class="foto" href="https://www.mercadolivre.com.br/p/MLB7314152850?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank" tabindex="-1" aria-hidden="true">
+    <span class="semfoto"></span>
+  </a>
+
+  <div class="conteudo">
+    <h2><a href="https://www.mercadolivre.com.br/p/MLB7314152850?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank">Geladeira Brastemp Frost Free 559 Litros French Door Inox</a></h2>
+
+    <p class="antes">&nbsp;</p>
+    <p class="agora">
+      <span class="valor">R$ 2.499,00</span>
+      
+    </p>
+
+    <p class="social">
+      
+      <span>25 vendidos</span>
+    </p>
+
+    <div class="conferido" data-veredito="primeira-leitura">
+      <p class="parecer">Primeira leitura deste preço</p>
+      
+    </div>
+
+    <a class="botao" href="https://www.mercadolivre.com.br/p/MLB7314152850?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank">Ver no Mercado Livre</a>
+  </div>
+</article>
+<article class="cartao">
+  <a class="foto" href="https://www.mercadolivre.com.br/p/MLB6235293422?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank" tabindex="-1" aria-hidden="true">
+    <span class="semfoto"></span>
+  </a>
+
+  <div class="conteudo">
+    <h2><a href="https://www.mercadolivre.com.br/p/MLB6235293422?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank">Brus fit Bicicleta Ergométrica Spinning Liftness X11 Preto/vermelho</a></h2>
+
+    <p class="antes">R$ 1.500,00</p>
+    <p class="agora">
+      <span class="valor">R$ 465,88</span>
+      <span class="off">68% OFF</span>
+    </p>
+
+    <p class="social">
+      <span class="nota">4,7</span>
+      <span>50.000 vendidos</span>
+    </p>
+
+    <div class="conferido" data-veredito="primeira-leitura">
+      <p class="parecer">Primeira leitura deste preço</p>
+      
+    </div>
+
+    <a class="botao" href="https://www.mercadolivre.com.br/p/MLB6235293422?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank">Ver no Mercado Livre</a>
+  </div>
+</article>
+<article class="cartao">
+  <a class="foto" href="https://www.mercadolivre.com.br/p/MLB4540180293?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank" tabindex="-1" aria-hidden="true">
+    <span class="semfoto"></span>
+  </a>
+
+  <div class="conteudo">
+    <h2><a href="https://www.mercadolivre.com.br/p/MLB4540180293?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank">Relógio Tommy Hilfiger Feminino Pippa em Aço Prateado com Fundo Preto</a></h2>
+
+    <p class="antes">R$ 790,00</p>
+    <p class="agora">
+      <span class="valor">R$ 509,00</span>
+      <span class="off">35% OFF</span>
+    </p>
+
+    <p class="social">
+      <span class="nota">5</span>
+      <span>100 vendidos</span>
+    </p>
+
+    <div class="conferido" data-veredito="primeira-leitura">
+      <p class="parecer">Primeira leitura deste preço</p>
+      
+    </div>
+
+    <a class="botao" href="https://www.mercadolivre.com.br/p/MLB4540180293?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank">Ver no Mercado Livre</a>
+  </div>
+</article>
+<article class="cartao">
+  <a class="foto" href="https://www.mercadolivre.com.br/p/MLB5682520334?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank" tabindex="-1" aria-hidden="true">
+    <span class="semfoto"></span>
+  </a>
+
+  <div class="conteudo">
+    <h2><a href="https://www.mercadolivre.com.br/p/MLB5682520334?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank">Mini Compressor De Ar Digital Para Pneus Carro Moto Bike 150psi</a></h2>
+
+    <p class="antes">R$ 157,98</p>
+    <p class="agora">
+      <span class="valor">R$ 66,00</span>
+      <span class="off">58% OFF</span>
+    </p>
+
+    <p class="social">
+      <span class="nota">4,9</span>
+      <span>5.000 vendidos</span>
+    </p>
+
+    <div class="conferido" data-veredito="primeira-leitura">
+      <p class="parecer">Primeira leitura deste preço</p>
+      
+    </div>
+
+    <a class="botao" href="https://www.mercadolivre.com.br/p/MLB5682520334?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank">Ver no Mercado Livre</a>
+  </div>
+</article>
+<article class="cartao">
+  <a class="foto" href="https://www.mercadolivre.com.br/p/MLB4049279695?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank" tabindex="-1" aria-hidden="true">
+    <span class="semfoto"></span>
+  </a>
+
+  <div class="conteudo">
+    <h2><a href="https://www.mercadolivre.com.br/p/MLB4049279695?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank">Tênis Masculino Feminino Kappa Park 2.0 Original</a></h2>
+
+    <p class="antes">R$ 169,99</p>
+    <p class="agora">
+      <span class="valor">R$ 79,70</span>
+      <span class="off">53% OFF</span>
+    </p>
+
+    <p class="social">
+      <span class="nota">4,7</span>
+      <span>100.000 vendidos</span>
+    </p>
+
+    <div class="conferido" data-veredito="primeira-leitura">
+      <p class="parecer">Primeira leitura deste preço</p>
+      
+    </div>
+
+    <a class="botao" href="https://www.mercadolivre.com.br/p/MLB4049279695?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank">Ver no Mercado Livre</a>
+  </div>
+</article>
+<article class="cartao">
+  <a class="foto" href="https://www.mercadolivre.com.br/p/MLB6713010960?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank" tabindex="-1" aria-hidden="true">
+    <span class="semfoto"></span>
+  </a>
+
+  <div class="conteudo">
+    <h2><a href="https://www.mercadolivre.com.br/p/MLB6713010960?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank">Creatina 1kg Suplemento Monohidratada em pó 100% Pura - Soldiers Nutrition</a></h2>
+
+    <p class="antes">R$ 199,90</p>
+    <p class="agora">
+      <span class="valor">R$ 78,90</span>
+      <span class="off">60% OFF</span>
+    </p>
+
+    <p class="social">
+      <span class="nota">4,8</span>
+      <span>750.000 vendidos</span>
+    </p>
+
+    <div class="conferido" data-veredito="primeira-leitura">
+      <p class="parecer">Primeira leitura deste preço</p>
+      
+    </div>
+
+    <a class="botao" href="https://www.mercadolivre.com.br/p/MLB6713010960?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank">Ver no Mercado Livre</a>
+  </div>
+</article>
+<article class="cartao">
+  <a class="foto" href="https://www.mercadolivre.com.br/p/MLB3621404839?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank" tabindex="-1" aria-hidden="true">
+    <span class="semfoto"></span>
+  </a>
+
+  <div class="conteudo">
+    <h2><a href="https://www.mercadolivre.com.br/p/MLB3621404839?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank">Lavadora Lava Jato Portátil Pressão 2 Baterias + Maleta 127/220v</a></h2>
+
+    <p class="antes">R$ 229,90</p>
+    <p class="agora">
+      <span class="valor">R$ 102,72</span>
+      <span class="off">55% OFF</span>
+    </p>
+
+    <p class="social">
+      <span class="nota">4,5</span>
+      <span>100.000 vendidos</span>
+    </p>
+
+    <div class="conferido" data-veredito="primeira-leitura">
+      <p class="parecer">Primeira leitura deste preço</p>
+      
+    </div>
+
+    <a class="botao" href="https://www.mercadolivre.com.br/p/MLB3621404839?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank">Ver no Mercado Livre</a>
+  </div>
+</article>
+<article class="cartao">
+  <a class="foto" href="https://www.mercadolivre.com.br/p/MLB4039409899?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank" tabindex="-1" aria-hidden="true">
+    <span class="semfoto"></span>
+  </a>
+
+  <div class="conteudo">
+    <h2><a href="https://www.mercadolivre.com.br/p/MLB4039409899?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank">Camiseta Graphics Puma Festival Puma</a></h2>
+
+    <p class="antes">R$ 179,99</p>
+    <p class="agora">
+      <span class="valor">R$ 104,49</span>
+      <span class="off">41% OFF</span>
+    </p>
+
+    <p class="social">
+      <span class="nota">4,9</span>
+      <span>1.000 vendidos</span>
+    </p>
+
+    <div class="conferido" data-veredito="primeira-leitura">
+      <p class="parecer">Primeira leitura deste preço</p>
+      
+    </div>
+
+    <a class="botao" href="https://www.mercadolivre.com.br/p/MLB4039409899?matt_word=torollaguilherme20220711121654&amp;matt_tool=48395341" rel="nofollow sponsored noopener" target="_blank">Ver no Mercado Livre</a>
+  </div>
+</article>
+</main>
+
+<footer>
+  <p><b>Site independente.</b> Não é o Mercado Livre e não tem relação oficial com a empresa.</p>
+  <p>Os links levam ao Mercado Livre e são de afiliado: se você comprar, eles pagam uma comissão
+  a quem publicou, sem custo extra pra você.</p>
+  <p>Preço muda a toda hora — o valor que vale é o que aparece lá na hora da compra.</p>
+</footer>
+</body>
+</html>
