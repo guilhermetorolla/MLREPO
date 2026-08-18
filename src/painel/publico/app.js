@@ -630,7 +630,7 @@ conteudo.addEventListener('click', async (ev) => {
   const alvo = ev.target
   if (!(alvo instanceof HTMLElement)) return
 
-  const acao = alvo.dataset.acao
+  const acao = alvo.closest('[data-acao]')?.dataset.acao
   if (acao) {
     const itemId = alvo.closest('.oferta')?.dataset.item
     if (!itemId) return

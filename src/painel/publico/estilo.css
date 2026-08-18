@@ -239,3 +239,27 @@ dialog::backdrop { background: rgba(12,46,49,.5); }
   .bloco-preco { grid-column: 2; text-align: left; }
   .acoes { grid-column: 1 / -1; justify-content: flex-start; }
 }
+
+/* ─── Fluxo de ações: a ordem faz parte da explicação ─── */
+.acoes-interna { align-items: stretch; }
+.passo-acao {
+  display: flex; align-items: center; gap: 9px; text-align: left;
+  border: 1px solid var(--linha); background: var(--branco); color: var(--texto);
+  border-radius: 9px; padding: 8px 13px 8px 9px; cursor: pointer; font: inherit;
+}
+.passo-acao:hover { border-color: var(--marca-clara); }
+.passo-acao .ordem {
+  width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+  background: var(--marca); color: #fff;
+  display: grid; place-items: center; font-size: 11px; font-weight: 700;
+}
+.passo-acao .rotulo-acao { display: block; font-size: 13px; font-weight: 600; line-height: 1.25; }
+.passo-acao .rotulo-acao em {
+  display: block; font-style: normal; font-size: 11px; font-weight: 400; color: var(--fraco);
+}
+.passo-acao.perigo { border-color: #F0C9C3; }
+.passo-acao.perigo .ordem { background: var(--vermelho); }
+.passo-acao.perigo:hover { border-color: var(--vermelho); background: var(--vermelho-suave); }
+.passo-acao.perigo .rotulo-acao em { color: var(--vermelho); }
+.passo-acao.secundario .ordem { background: var(--tenue); }
+.passo-acao:focus-visible { outline: 2px solid var(--marca-clara); outline-offset: 2px; }
