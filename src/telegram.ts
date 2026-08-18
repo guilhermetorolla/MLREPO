@@ -113,6 +113,20 @@ export class Telegram {
     return foto && montarTextoPublico(item, link).length <= LIMITE_LEGENDA ? 'foto' : 'texto'
   }
 
+  /**
+   * Recado direto para VOCÊ — não para o canal. Usado quando o motor precisa
+   * de uma intervenção humana (sessão caída, por exemplo) e não teria como
+   * pedir de outro jeito.
+   */
+  async avisar(chatId: string, texto: string): Promise<void> {
+    await this.chamar('sendMessage', {
+      chat_id: chatId,
+      text: texto,
+      parse_mode: 'HTML',
+      link_preview_options: { is_disabled: true },
+    })
+  }
+
   async responderCallback(id: string, texto: string): Promise<void> {
     await this.chamar('answerCallbackQuery', { callback_query_id: id, text: texto })
   }

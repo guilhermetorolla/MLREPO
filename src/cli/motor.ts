@@ -21,6 +21,7 @@ import {
 import { LinkbuilderProvider } from '../link/linkbuilder.ts'
 import { MontadoProvider } from '../link/montado.ts'
 import { diaLocal, motivoParaEsperar } from '../motor/agenda.ts'
+import { avisarSessaoCaida, ehSessaoExpirada, marcarSessaoOk } from '../motor/aviso.ts'
 import { filtrarConteudo, motivoAutomacaoEsperar } from '../motor/automacao.ts'
 import type { Destino } from '../motor/tipos.ts'
 import { ranquear } from '../score.ts'
@@ -58,6 +59,16 @@ if (!seco && !tokenTelegram) {
 const tg = seco ? undefined : new Telegram(tokenTelegram!)
 const etiqueta = config(db, 'etiqueta', 'ETIQUETA') ?? exigir('ETIQUETA')
 
+/** Para onde vai recado de operação (sessão caída), não oferta. */
+const chatOperador = config(db, 'telegram_chat_aprovacao', 'TELEGRAM_CHAT_APROVACAO')
+
+/**
+ * Sessão do ML caída derruba a rodada inteira, não só um item: todo link nasce
+ * do mesmo perfil de navegador. Sem essa trava o motor abriria o Chromium uma
+ * vez por destino para colher sempre o mesmo erro.
+ */
+let sessaoCaiu = false
+
 const provider: LinkProvider =
   process.env.LINK_PROVIDER === 'montado'
     ? new MontadoProvider(exigir('MATT_TOOL'))
@@ -93,6 +104,8 @@ const feitosNestaRodada = new Set<string>()
 // ─── Fase 1: agendamentos vencidos ───────────────────────────────
 
 for (const ag of agendamentosVencidos(db, agora)) {
+  if (sessaoCaiu) break
+
   const destino = destinos.find((d) => d.id === ag.destinoId)
   const item = porItem.get(ag.itemId)
 
@@ -133,6 +146,8 @@ if (automacoes.length === 0) {
 }
 
 for (const automacao of automacoes) {
+  if (sessaoCaiu) break
+
   const stat = estatisticaAutomacao(db, automacao.id, hoje)
   const espera = motivoAutomacaoEsperar(automacao, agora, stat.ultima, stat.enviadosHoje)
   if (espera) {
@@ -151,6 +166,8 @@ for (const automacao of automacoes) {
   let enviouAlgo = false
 
   for (const destinoId of automacao.destinos) {
+    if (sessaoCaiu) break
+
     const destino = destinos.find((d) => d.id === destinoId)
     if (!destino) {
       console.log(`  ${automacao.nome}: destino "${destinoId}" não existe mais`)
@@ -209,6 +226,22 @@ async function publicar(
         const novos = await provider.gerar([item.oferta], etiqueta)
         link = novos.get(item.oferta.itemId)
       } catch (e) {
+        if (ehSessaoExpirada(e)) {
+          sessaoCaiu = true
+          const avisado = await avisarSessaoCaida({
+            db,
+            agora: new Date(),
+            enviar: (texto) =>
+              chatOperador
+                ? tg!.avisar(chatOperador, texto)
+                : Promise.reject(new Error('TELEGRAM_CHAT_APROVACAO não configurado')),
+          })
+          console.error(
+            `  ${prefixo}${destino.nome}: sessão do Mercado Livre expirou — rode \`npm run entrar\`` +
+              (avisado ? ' (avisei no Telegram)' : ''),
+          )
+          return false
+        }
         registrarEvento(db, 'erro', 'motor', 'falha ao gerar link', `${item.oferta.itemId}: ${(e as Error).message}`)
         console.error(`  ${prefixo}${destino.nome}: ERRO ao gerar link — ${(e as Error).message}`)
         return false
@@ -219,6 +252,9 @@ async function publicar(
         return false
       }
       salvarLink(db, item.oferta.itemId, etiqueta, link)
+      // Gerou link: a sessão está viva de novo, então a próxima queda
+      // é incidente novo e avisa na hora.
+      marcarSessaoOk(db)
     }
   }
 

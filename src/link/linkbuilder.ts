@@ -1,5 +1,6 @@
 import { chromium } from 'playwright'
 import { PERFIL } from '../coletor.ts'
+import { SessaoExpirada } from '../motor/aviso.ts'
 import type { LinkProvider, Oferta } from '../tipos.ts'
 
 const LINKBUILDER = 'https://www.mercadolivre.com.br/afiliados/linkbuilder'
@@ -45,7 +46,7 @@ export class LinkbuilderProvider implements LinkProvider {
         await page.goto(LINKBUILDER, { waitUntil: 'domcontentloaded' })
 
         if (/\/login|\/jms\/mlb\/lgz/.test(page.url())) {
-          throw new Error('Sessão do Mercado Livre expirou — refaça o login no perfil do navegador.')
+          throw new SessaoExpirada()
         }
 
         await this.conferirEtiqueta(page, etiqueta)
