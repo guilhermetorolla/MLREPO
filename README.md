@@ -45,6 +45,7 @@ npm run bot         # manda as ofertas para você aprovar no Telegram
 npm run site        # gera docs/index.html e docs/feed.json
 npm run motor -- --simular   # mostra o que publicaria, sem enviar nada
 npm run motor       # publica de verdade nos destinos liberados pela agenda
+npm run painel      # painel web em http://localhost:4477
 npm test            # 49 testes
 ```
 
@@ -140,3 +141,34 @@ mínimo por destino existem para não cansar a audiência nem tomar restrição 
 Não revalida o preço no instante do envio. Se o preço mudou entre a coleta e a publicação, o
 anúncio sai com valor vencido. É o item pendente da Fase 2 e o erro que mais destrói confiança
 em grupo de oferta.
+
+## O painel
+
+`npm run painel` sobe um Fastify local com quatro telas: **Fila** (aprovar, descartar,
+programar), **Programados**, **Destinos** (CRUD, sem editar JSON na mão) e **Motor**
+(situação de cada destino agora e histórico do que saiu).
+
+Acesso pela tailnet: `http://mac-mini-de-guilherme:4477`.
+
+**Token obrigatório.** Sua tailnet tem máquinas de outras pessoas; sem autenticação
+qualquer uma delas dispararia post em nome do seu afiliado. Gere com
+`openssl rand -hex 16` e ponha em `PAINEL_TOKEN` no `.env` — o servidor se recusa a subir
+sem ele. O token vai em header `x-painel-token`, guardado no localStorage do navegador,
+nunca na URL.
+
+O `preHandler` de autenticação é `async` explícito: em Fastify v4+, hook não-async é tratado
+como assinatura legada e a rota fica pendurada para sempre, sem erro e sem timeout.
+
+### Como o motor mudou
+
+Uma rodada agora tem duas fases:
+
+1. **agendamentos vencidos** — você marcou a hora, então ignoram a régua de corte. Respeitam
+   só o intervalo mínimo do destino, para dois posts não saírem colados.
+2. **grade automática** — janela + limite + corte, um post por destino livre.
+
+Ofertas **rejeitadas** no painel saem da fila; **aprovadas** têm preferência sobre as que
+apenas passaram no corte.
+
+Destinos passaram a viver no banco (editáveis pela tela). O `destinos.json` continua servindo
+de semente na primeira execução.

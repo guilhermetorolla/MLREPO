@@ -49,6 +49,41 @@ function migrar(db: Database.Database): void {
       PRIMARY KEY (item_id, etiqueta)
     );
 
+    -- Sua decisão sobre cada oferta, tomada no painel.
+    CREATE TABLE IF NOT EXISTS decisoes (
+      item_id     TEXT PRIMARY KEY,
+      estado      TEXT NOT NULL CHECK (estado IN ('aprovado','rejeitado','adiado')),
+      adiado_ate  TEXT,
+      decidido_em TEXT NOT NULL
+    );
+
+    -- Post marcado para um horário específico. Tem precedência sobre a grade
+    -- automática: se você marcou a hora, você quis.
+    CREATE TABLE IF NOT EXISTS agendamentos (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      item_id      TEXT NOT NULL,
+      destino_id   TEXT NOT NULL,
+      quando       TEXT NOT NULL,
+      estado       TEXT NOT NULL DEFAULT 'pendente'
+                   CHECK (estado IN ('pendente','publicado','cancelado','falhou')),
+      erro         TEXT,
+      criado_em    TEXT NOT NULL,
+      publicado_em TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_agend_pendente ON agendamentos(estado, quando);
+
+    -- Destinos vivem no banco para poderem ser editados pelo painel.
+    -- O destinos.json continua servindo como semente na primeira execução.
+    CREATE TABLE IF NOT EXISTS destinos (
+      id                TEXT PRIMARY KEY,
+      chat_id           TEXT NOT NULL,
+      nome              TEXT NOT NULL,
+      janelas           TEXT NOT NULL,
+      limite_diario     INTEGER NOT NULL,
+      intervalo_minutos INTEGER NOT NULL,
+      ativo             INTEGER NOT NULL DEFAULT 1
+    );
+
     CREATE TABLE IF NOT EXISTS publicacoes (
       item_id       TEXT NOT NULL,
       canal         TEXT NOT NULL,
@@ -202,4 +237,141 @@ export function ofertasSalvas(db: Database.Database): Oferta[] {
     rating: l.rating ?? undefined,
     categoria: l.categoria ?? undefined,
   }))
+}
+
+// ─── Decisões (aprovação no painel) ──────────────────────────────
+
+export type EstadoDecisao = 'aprovado' | 'rejeitado' | 'adiado'
+
+export interface Decisao {
+  itemId: string
+  estado: EstadoDecisao
+  adiadoAte?: string
+  decididoEm: string
+}
+
+export function salvarDecisao(
+  db: Database.Database,
+  itemId: string,
+  estado: EstadoDecisao,
+  adiadoAte?: string,
+): void {
+  db.prepare(
+    `INSERT INTO decisoes (item_id, estado, adiado_ate, decidido_em) VALUES (?, ?, ?, ?)
+     ON CONFLICT(item_id) DO UPDATE SET
+       estado = excluded.estado, adiado_ate = excluded.adiado_ate, decidido_em = excluded.decidido_em`,
+  ).run(itemId, estado, adiadoAte ?? null, new Date().toISOString())
+}
+
+export function decisoes(db: Database.Database): Map<string, Decisao> {
+  const linhas = db
+    .prepare(
+      'SELECT item_id AS itemId, estado, adiado_ate AS adiadoAte, decidido_em AS decididoEm FROM decisoes',
+    )
+    .all() as Decisao[]
+  return new Map(linhas.map((d) => [d.itemId, d]))
+}
+
+// ─── Agendamentos ────────────────────────────────────────────────
+
+export interface Agendamento {
+  id: number
+  itemId: string
+  destinoId: string
+  quando: string
+  estado: 'pendente' | 'publicado' | 'cancelado' | 'falhou'
+  erro?: string
+  criadoEm: string
+  publicadoEm?: string
+}
+
+export function agendar(
+  db: Database.Database,
+  itemId: string,
+  destinoId: string,
+  quando: string,
+): number {
+  const r = db
+    .prepare(
+      'INSERT INTO agendamentos (item_id, destino_id, quando, criado_em) VALUES (?, ?, ?, ?)',
+    )
+    .run(itemId, destinoId, quando, new Date().toISOString())
+  return Number(r.lastInsertRowid)
+}
+
+export function agendamentos(db: Database.Database, estado?: string): Agendamento[] {
+  const sql = `SELECT id, item_id AS itemId, destino_id AS destinoId, quando, estado, erro,
+                      criado_em AS criadoEm, publicado_em AS publicadoEm
+               FROM agendamentos ${estado ? 'WHERE estado = ?' : ''} ORDER BY quando`
+  return (estado ? db.prepare(sql).all(estado) : db.prepare(sql).all()) as Agendamento[]
+}
+
+/** Agendamentos cuja hora já chegou e que ainda não foram publicados. */
+export function agendamentosVencidos(db: Database.Database, agora: Date): Agendamento[] {
+  return db
+    .prepare(
+      `SELECT id, item_id AS itemId, destino_id AS destinoId, quando, estado, erro,
+              criado_em AS criadoEm, publicado_em AS publicadoEm
+       FROM agendamentos WHERE estado = 'pendente' AND quando <= ? ORDER BY quando`,
+    )
+    .all(agora.toISOString()) as Agendamento[]
+}
+
+export function marcarAgendamento(
+  db: Database.Database,
+  id: number,
+  estado: Agendamento['estado'],
+  erro?: string,
+): void {
+  db.prepare('UPDATE agendamentos SET estado = ?, erro = ?, publicado_em = ? WHERE id = ?').run(
+    estado,
+    erro ?? null,
+    estado === 'publicado' ? new Date().toISOString() : null,
+    id,
+  )
+}
+
+// ─── Destinos ────────────────────────────────────────────────────
+
+export interface DestinoLinha {
+  id: string
+  chatId: string
+  nome: string
+  janelas: string[]
+  limiteDiario: number
+  intervaloMinutos: number
+  ativo: boolean
+}
+
+export function destinos(db: Database.Database): DestinoLinha[] {
+  const linhas = db
+    .prepare(
+      `SELECT id, chat_id AS chatId, nome, janelas, limite_diario AS limiteDiario,
+              intervalo_minutos AS intervaloMinutos, ativo FROM destinos ORDER BY nome`,
+    )
+    .all() as (Omit<DestinoLinha, 'janelas' | 'ativo'> & { janelas: string; ativo: number })[]
+  return linhas.map((l) => ({ ...l, janelas: JSON.parse(l.janelas), ativo: Boolean(l.ativo) }))
+}
+
+export function salvarDestino(db: Database.Database, d: DestinoLinha): void {
+  db.prepare(
+    `INSERT INTO destinos (id, chat_id, nome, janelas, limite_diario, intervalo_minutos, ativo)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       chat_id = excluded.chat_id, nome = excluded.nome, janelas = excluded.janelas,
+       limite_diario = excluded.limite_diario, intervalo_minutos = excluded.intervalo_minutos,
+       ativo = excluded.ativo`,
+  ).run(
+    d.id,
+    d.chatId,
+    d.nome,
+    JSON.stringify(d.janelas),
+    d.limiteDiario,
+    d.intervaloMinutos,
+    d.ativo ? 1 : 0,
+  )
+}
+
+export function apagarDestino(db: Database.Database, id: string): void {
+  db.prepare('DELETE FROM destinos WHERE id = ?').run(id)
 }

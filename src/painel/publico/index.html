@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel · Ofertas ML</title>
+<link rel="stylesheet" href="/estilo.css">
+</head>
+<body>
+
+<header class="barra">
+  <div class="barra-interna">
+    <p class="marca">Painel de ofertas</p>
+    <nav class="abas">
+      <button class="aba ativa" data-tela="fila">Fila</button>
+      <button class="aba" data-tela="agenda">Programados</button>
+      <button class="aba" data-tela="destinos">Destinos</button>
+      <button class="aba" data-tela="motor">Motor</button>
+    </nav>
+    <span class="relogio" id="relogio"></span>
+  </div>
+</header>
+
+<main id="conteudo"><p class="carregando">Carregando…</p></main>
+
+<dialog id="dlg-token">
+  <form method="dialog" class="cartao-dialogo">
+    <h2>Token do painel</h2>
+    <p class="ajuda">É o <code>PAINEL_TOKEN</code> do seu <code>.env</code>. Fica salvo neste navegador.</p>
+    <input type="password" id="campo-token" autocomplete="off" placeholder="cole o token">
+    <div class="acoes-dialogo"><button value="ok" class="botao">Entrar</button></div>
+  </form>
+</dialog>
+
+<dialog id="dlg-agendar">
+  <form method="dialog" class="cartao-dialogo">
+    <h2>Programar publicação</h2>
+    <p class="ajuda" id="agendar-titulo"></p>
+    <label>Destino <select id="agendar-destino"></select></label>
+    <label>Quando <input type="datetime-local" id="agendar-quando"></label>
+    <p class="ajuda">Post programado ignora a régua de corte, mas respeita o intervalo mínimo do destino.</p>
+    <div class="acoes-dialogo">
+      <button value="cancelar" class="botao-fraco">Cancelar</button>
+      <button value="ok" class="botao">Programar</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>
