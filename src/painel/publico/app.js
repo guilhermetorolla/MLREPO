@@ -18,14 +18,13 @@ function token() {
 }
 
 async function api(caminho, opcoes = {}) {
-  const r = await fetch(`/api${caminho}`, {
-    ...opcoes,
-    headers: {
-      'Content-Type': 'application/json',
-      'x-painel-token': token(),
-      ...(opcoes.headers ?? {}),
-    },
-  })
+  // Fastify recusa com 400 quando chega Content-Type: application/json e o
+  // corpo está vazio. Como POST de ação e DELETE não mandam corpo, o header
+  // só entra quando existe corpo de verdade — senão os botões todos quebram.
+  const cabecalhos = { 'x-painel-token': token(), ...(opcoes.headers ?? {}) }
+  if (opcoes.body !== undefined) cabecalhos['Content-Type'] = 'application/json'
+
+  const r = await fetch(`/api${caminho}`, { ...opcoes, headers: cabecalhos })
   if (r.status === 401) {
     localStorage.removeItem(CHAVE_TOKEN)
     pedirToken()
