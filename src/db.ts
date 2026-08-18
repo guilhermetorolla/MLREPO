@@ -220,6 +220,10 @@ export function salvarOfertas(db: Database.Database, ofertas: Oferta[]): void {
             @comissaoPct, @comissaoExtra, @vendas, @rating, @categoria,
             @marketplace, @imagemId, @imagemUrl, @vistoEm)
     ON CONFLICT(item_id) DO UPDATE SET
+      -- url, product_id e titulo TAMBÉM entram: sem eles, um registro com URL
+      -- errada nunca se corrigia na recoleta, e o link publicado ficava quebrado
+      -- para sempre.
+      url = excluded.url, product_id = excluded.product_id, titulo = excluded.titulo,
       preco_atual = excluded.preco_atual, preco_anterior = excluded.preco_anterior,
       comissao_pct = excluded.comissao_pct, comissao_extra = excluded.comissao_extra,
       vendas = excluded.vendas, rating = excluded.rating, imagem_id = excluded.imagem_id,
