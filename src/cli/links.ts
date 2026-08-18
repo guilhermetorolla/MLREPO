@@ -1,36 +1,44 @@
 import { carregarEnv, exigir } from '../config.ts'
 import { abrir, historicos, linkSalvo, ofertasSalvas, salvarLink } from '../db.ts'
-import { LinkbuilderProvider } from '../link/linkbuilder.ts'
-import { MontadoProvider } from '../link/montado.ts'
+import { agruparPorMarketplace, linkPara } from '../fontes/registry.ts'
 import { ranquear } from '../score.ts'
-import type { LinkProvider } from '../tipos.ts'
+import { MARKETPLACES } from '../tipos.ts'
 
 carregarEnv()
 
 /**
- * Garante link de afiliado para as N melhores ofertas da fila.
- * Roda antes de `npm run site` — a página só mostra oferta que já tem link.
+ * Garante link de afiliado para as melhores ofertas da fila, usando o provedor
+ * de cada marketplace — o do ML passa por navegador, o da Shopee é API.
  */
-const quantos = Number(process.argv[2] ?? process.env.SITE_ITENS ?? 24)
+const quantos = Number(process.argv.find((a) => /^\d+$/.test(a)) ?? process.env.SITE_ITENS ?? 24)
 const etiqueta = exigir('ETIQUETA')
-
-const provider: LinkProvider =
-  process.env.LINK_PROVIDER === 'montado'
-    ? new MontadoProvider(exigir('MATT_TOOL'))
-    : new LinkbuilderProvider({ headless: process.env.HEADLESS === '1' })
 
 const db = abrir()
 const fila = ranquear(ofertasSalvas(db), { historicos: historicos(db) }).slice(0, quantos)
-const faltando = fila.filter((i) => !linkSalvo(db, i.oferta.itemId, etiqueta))
+const faltando = fila.filter((i) => !linkSalvo(db, i.oferta.itemId, etiqueta)).map((i) => i.oferta)
 
-console.log(`${fila.length} na fila · ${faltando.length} sem link · provider: ${provider.nome}`)
+console.log(`${fila.length} na fila · ${faltando.length} sem link`)
 
-if (faltando.length > 0) {
-  const novos = await provider.gerar(faltando.map((f) => f.oferta), etiqueta)
-  for (const [itemId, url] of novos) salvarLink(db, itemId, etiqueta, url)
-  console.log(`${novos.size} links gerados e salvos.`)
-  if (novos.size < faltando.length) {
-    console.log(`${faltando.length - novos.size} não puderam ser gerados.`)
+for (const [marketplace, ofertas] of agruparPorMarketplace(faltando)) {
+  const provedor = linkPara(marketplace)
+  if (!provedor) {
+    console.log(`${MARKETPLACES[marketplace] ?? marketplace}: sem provedor de link — ${ofertas.length} puladas`)
+    continue
+  }
+
+  const d = await provedor.disponivel()
+  if (!d.ok) {
+    console.log(`${provedor.nome}: indisponível — ${d.motivo}`)
+    continue
+  }
+
+  try {
+    const novos = await provedor.gerar(ofertas, etiqueta)
+    for (const [itemId, url] of novos) salvarLink(db, itemId, etiqueta, url)
+    console.log(`${provedor.nome}: ${novos.size} de ${ofertas.length} links gerados`)
+  } catch (e) {
+    console.error(`${provedor.nome}: falhou — ${(e as Error).message}`)
   }
 }
+
 db.close()

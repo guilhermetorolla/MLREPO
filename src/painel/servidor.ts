@@ -110,7 +110,8 @@ app.get('/api/fila', async () => {
         itemId: i.oferta.itemId,
         titulo: i.oferta.titulo,
         url: i.oferta.url,
-        imagem: urlImagem(i.oferta.imagemId),
+        imagem: urlImagem(i.oferta.imagemId, i.oferta.imagemUrl),
+        marketplace: i.oferta.marketplace ?? 'ml',
         preco: i.oferta.precoAtual,
         precoAnterior: i.oferta.precoAnterior,
         comissaoPct: i.oferta.comissaoPct,
@@ -179,7 +180,7 @@ app.get('/api/agendamentos', async () => ({
     return {
       ...a,
       titulo: o?.titulo ?? '(oferta saiu da base)',
-      imagem: urlImagem(o?.imagemId),
+      imagem: urlImagem(o?.imagemId, o?.imagemUrl),
       preco: o?.precoAtual ?? null,
     }
   }),

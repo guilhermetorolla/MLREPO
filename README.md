@@ -200,3 +200,29 @@ Navegação lateral com Início, Fila, Automações, Destinos, Programados, Moto
 A tela **Início** é um checklist do que falta para o motor rodar sozinho (ofertas, links,
 destino, automação, Telegram), com botão de resolver em cada passo pendente, mais as métricas
 do dia.
+
+## Multi-marketplace
+
+Cada marketplace implementa duas interfaces em `src/fontes/`:
+
+- `FonteDeOfertas` — de onde vêm os produtos
+- `ProvedorDeLink` — como nasce o link de afiliado
+
+Por baixo eles são muito diferentes, e é exatamente por isso que existe a abstração:
+
+| Marketplace | Ofertas | Link de afiliado |
+|---|---|---|
+| Mercado Livre | endpoint interno do hub, exige sessão de navegador | gerador do painel (lote) ou link montado |
+| Shopee | **API oficial** GraphQL + HMAC-SHA256 | **API oficial**, `generateShortLink` |
+| Amazon | PA-API (ainda não implementada) | PA-API |
+
+A Shopee é o caso fácil: link gerado por API, sem navegador, sem captcha, sem lote manual.
+O Mercado Livre é o difícil. Isso inverte a intuição de quem começa pelo ML.
+
+**Identidade das ofertas:** com mais de um marketplace o id nativo deixa de ser único, então
+a chave é `<marketplace>:<id>` (`ml:MLB123`, `shopee:456`). Registros anteriores ao prefixo
+são migrados automaticamente na abertura do banco, em todas as tabelas que referenciam
+`item_id`.
+
+**Falha isolada:** fonte sem credencial é pulada com aviso e não derruba a coleta das outras.
+`npm run coletar --fonte=shopee` limita a uma fonte.

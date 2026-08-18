@@ -9,9 +9,10 @@ const bruto = JSON.parse(
 
 test('extrai os campos que importam de um card real', () => {
   const ofertas = parsearFeed(bruto, { agora: new Date('2026-08-17T18:00:00.000Z') })
-  const creatina = ofertas.find((o) => o.itemId === 'MLB6713010960')
+  const creatina = ofertas.find((o) => o.itemId === 'ml:MLB6713010960')
 
   assert.ok(creatina, 'card da creatina foi parseado')
+  assert.equal(creatina.marketplace, 'ml', 'oferta carrega o marketplace de origem')
   assert.equal(creatina.comissaoPct, 22, 'percentual vem de chip.label.text')
   assert.equal(creatina.comissaoExtra, true, 'EXTRAS no pill marca comissão extra')
   assert.equal(creatina.precoAtual, 78.9, 'base da comissão é o preço ATUAL')
@@ -28,7 +29,7 @@ test('extrai os campos que importam de um card real', () => {
 // A primeira versão do parser só entendia o primeiro e descartava metade do feed.
 test('entende o chip do formato SEM comissão extra (percentual dentro do pill.text)', () => {
   const ofertas = parsearFeed(bruto)
-  const relogio = ofertas.find((o) => o.itemId === 'MLB66686279')
+  const relogio = ofertas.find((o) => o.itemId === 'ml:MLB66686279')
   assert.ok(relogio, 'card de comissão normal NÃO pode ser descartado')
   assert.equal(relogio.comissaoExtra, false)
   assert.equal(relogio.comissaoPct, 12)
@@ -38,7 +39,7 @@ test('entende o chip do formato SEM comissão extra (percentual dentro do pill.t
 test('card sem chip de comissão é descartado', () => {
   const ofertas = parsearFeed(bruto)
   assert.equal(
-    ofertas.find((o) => o.itemId === 'MLB-SEM-CHIP'),
+    ofertas.find((o) => o.itemId === 'ml:MLB-SEM-CHIP'),
     undefined,
     'sem comissão conhecida não entra na fila',
   )

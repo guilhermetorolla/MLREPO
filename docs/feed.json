@@ -1,8 +1,32 @@
 {
-  "gerado_em": "2026-08-18T13:14:18.754Z",
+  "gerado_em": "2026-08-18T14:38:16.935Z",
   "ofertas": [
     {
-      "id": "MLB7390723950",
+      "id": "ml:MLB5008714323",
+      "titulo": "Scooters Elétrica Bike Raptor 1000w Sem Cnh Autopropelido Branco 127/220v",
+      "preco": 12999,
+      "preco_anterior": null,
+      "imagem": "https://http2.mlstatic.com/D_NQ_NP_2X_627457-MLB114393494128_082026-F.webp",
+      "veredito": "primeira-leitura",
+      "menor_observado": 12999,
+      "maior_observado": 12999,
+      "leituras": 1,
+      "link": "https://www.mercadolivre.com.br/scooters-eletrica-bike-raptor-1000w-sem-cnh-autopropelido/up/MLBU4601603291?matt_word=torollaguilherme20220711121654&matt_tool=48395341"
+    },
+    {
+      "id": "ml:MLB3373088145",
+      "titulo": "Estação Musculação 45Kg Completa Academia Treino WCT Fitness",
+      "preco": 3000,
+      "preco_anterior": null,
+      "imagem": "https://http2.mlstatic.com/D_NQ_NP_2X_921183-MLA99990715977_112025-F.webp",
+      "veredito": "primeira-leitura",
+      "menor_observado": 3000,
+      "maior_observado": 3000,
+      "leituras": 1,
+      "link": "https://www.mercadolivre.com.br/estacao-musculacao-45kg-completa-academia-treino-wct-fitness/p/MLB24423814?matt_word=torollaguilherme20220711121654&matt_tool=48395341"
+    },
+    {
+      "id": "ml:MLB7390723950",
       "titulo": "Scooters Elétrica Bike X11 Mini 1000w Sem Cnh Autopropelido Vermelho",
       "preco": 8399,
       "preco_anterior": 11999,
@@ -10,11 +34,35 @@
       "veredito": "menor-ja-visto",
       "menor_observado": 8399,
       "maior_observado": 8399,
-      "leituras": 2,
+      "leituras": 3,
       "link": "https://www.mercadolivre.com.br/p/MLB7390723950?matt_word=torollaguilherme20220711121654&matt_tool=48395341"
     },
     {
-      "id": "MLB7314152850",
+      "id": "ml:MLB4282121161",
+      "titulo": "Bicicleta Elétrica Nado C2 1000W Bateria Removível 48V 60km PretoBicicleta Elétrica Nado C2 1000W Bateria Remo",
+      "preco": 5275,
+      "preco_anterior": 7682,
+      "imagem": "https://http2.mlstatic.com/D_NQ_NP_2X_920387-MLA99928847403_112025-F.webp",
+      "veredito": "primeira-leitura",
+      "menor_observado": 5275,
+      "maior_observado": 5275,
+      "leituras": 1,
+      "link": "https://www.mercadolivre.com.br/bicicleta-eletrica-nado-c2-1000w-bateria-removivel-48v-60km-pretobicicleta-eletrica-nado-c2-1000w-bateria-removivel-48v-60km-preto/p/MLB60923094?matt_word=torollaguilherme20220711121654&matt_tool=48395341"
+    },
+    {
+      "id": "ml:MLB5233796850",
+      "titulo": "Cama Box Baú Preto E Colchão Airtech Ortobom Casal",
+      "preco": 2030,
+      "preco_anterior": null,
+      "imagem": "https://http2.mlstatic.com/D_NQ_NP_2X_695405-MLA99944067145_112025-F.webp",
+      "veredito": "primeira-leitura",
+      "menor_observado": 2030,
+      "maior_observado": 2030,
+      "leituras": 1,
+      "link": "https://www.mercadolivre.com.br/cama-box-bau-preto-e-colchao-airtech-ortobom-casal/p/MLB45014916?matt_word=torollaguilherme20220711121654&matt_tool=48395341"
+    },
+    {
+      "id": "ml:MLB7314152850",
       "titulo": "Geladeira Brastemp Frost Free 559 Litros French Door Inox",
       "preco": 2499,
       "preco_anterior": null,
@@ -22,92 +70,20 @@
       "veredito": "menor-ja-visto",
       "menor_observado": 2499,
       "maior_observado": 2499,
-      "leituras": 2,
+      "leituras": 3,
       "link": "https://www.mercadolivre.com.br/p/MLB7314152850?matt_word=torollaguilherme20220711121654&matt_tool=48395341"
     },
     {
-      "id": "MLB6235293422",
-      "titulo": "Brus fit Bicicleta Ergométrica Spinning Liftness X11 Preto/vermelho",
-      "preco": 465.88,
-      "preco_anterior": 1500,
-      "imagem": "https://http2.mlstatic.com/D_NQ_NP_2X_855893-MLA116282152627_082026-F.webp",
-      "veredito": "menor-ja-visto",
-      "menor_observado": 465.88,
-      "maior_observado": 465.88,
-      "leituras": 2,
-      "link": "https://www.mercadolivre.com.br/p/MLB6235293422?matt_word=torollaguilherme20220711121654&matt_tool=48395341"
-    },
-    {
-      "id": "MLB4540180293",
-      "titulo": "Relógio Tommy Hilfiger Feminino Pippa em Aço Prateado com Fundo Preto",
-      "preco": 509,
-      "preco_anterior": 790,
-      "imagem": "https://http2.mlstatic.com/D_NQ_NP_2X_902395-MLA108762833699_032026-F.webp",
-      "veredito": "menor-ja-visto",
-      "menor_observado": 509,
-      "maior_observado": 509,
-      "leituras": 2,
-      "link": "https://www.mercadolivre.com.br/p/MLB4540180293?matt_word=torollaguilherme20220711121654&matt_tool=48395341"
-    },
-    {
-      "id": "MLB5682520334",
+      "id": "ml:MLB5682520334",
       "titulo": "Mini Compressor De Ar Digital Para Pneus Carro Moto Bike 150psi",
-      "preco": 66,
-      "preco_anterior": 157.98,
+      "preco": 157.98,
+      "preco_anterior": null,
       "imagem": "https://http2.mlstatic.com/D_NQ_NP_2X_798774-MLA115731267289_082026-F.webp",
-      "veredito": "menor-ja-visto",
+      "veredito": "ja-esteve-menor",
       "menor_observado": 66,
-      "maior_observado": 66,
-      "leituras": 2,
+      "maior_observado": 157.98,
+      "leituras": 3,
       "link": "https://www.mercadolivre.com.br/p/MLB5682520334?matt_word=torollaguilherme20220711121654&matt_tool=48395341"
-    },
-    {
-      "id": "MLB4049279695",
-      "titulo": "Tênis Masculino Feminino Kappa Park 2.0 Original",
-      "preco": 79.7,
-      "preco_anterior": 169.99,
-      "imagem": "https://http2.mlstatic.com/D_NQ_NP_2X_897493-MLB112013730462_062026-F.webp",
-      "veredito": "menor-ja-visto",
-      "menor_observado": 79.7,
-      "maior_observado": 79.7,
-      "leituras": 2,
-      "link": "https://www.mercadolivre.com.br/p/MLB4049279695?matt_word=torollaguilherme20220711121654&matt_tool=48395341"
-    },
-    {
-      "id": "MLB6713010960",
-      "titulo": "Creatina 1kg Suplemento Monohidratada em pó 100% Pura - Soldiers Nutrition",
-      "preco": 78.9,
-      "preco_anterior": 199.9,
-      "imagem": "https://http2.mlstatic.com/D_NQ_NP_2X_894230-MLA111390627295_052026-F.webp",
-      "veredito": "menor-ja-visto",
-      "menor_observado": 78.9,
-      "maior_observado": 78.9,
-      "leituras": 2,
-      "link": "https://www.mercadolivre.com.br/p/MLB6713010960?matt_word=torollaguilherme20220711121654&matt_tool=48395341"
-    },
-    {
-      "id": "MLB3621404839",
-      "titulo": "Lavadora Lava Jato Portátil Pressão 2 Baterias + Maleta 127/220v",
-      "preco": 102.72,
-      "preco_anterior": 229.9,
-      "imagem": "https://http2.mlstatic.com/D_NQ_NP_2X_710675-MLB89102120983_082025-F.webp",
-      "veredito": "menor-ja-visto",
-      "menor_observado": 102.72,
-      "maior_observado": 102.72,
-      "leituras": 2,
-      "link": "https://www.mercadolivre.com.br/p/MLB3621404839?matt_word=torollaguilherme20220711121654&matt_tool=48395341"
-    },
-    {
-      "id": "MLB4039409899",
-      "titulo": "Camiseta Graphics Puma Festival Puma",
-      "preco": 104.49,
-      "preco_anterior": 179.99,
-      "imagem": "https://http2.mlstatic.com/D_NQ_NP_2X_679399-MLB83970454179_042025-F.webp",
-      "veredito": "menor-ja-visto",
-      "menor_observado": 104.49,
-      "maior_observado": 104.49,
-      "leituras": 2,
-      "link": "https://www.mercadolivre.com.br/p/MLB4039409899?matt_word=torollaguilherme20220711121654&matt_tool=48395341"
     }
   ]
 }

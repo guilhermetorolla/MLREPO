@@ -1,4 +1,4 @@
-import type { Oferta } from './tipos.ts'
+import { idCanonico, type Oferta } from './tipos.ts'
 
 /**
  * Traduz a resposta de POST /affiliate-program/api/hub/search em Ofertas.
@@ -69,7 +69,8 @@ function parsearCard(card: any, vistoEm: string): Oferta | null {
   const extraNoMetadata = String(meta?.extra_commission ?? '').toLowerCase() === 'true'
 
   return {
-    itemId,
+    itemId: idCanonico('ml', itemId),
+    marketplace: 'ml',
     productId: meta?.product_id || undefined,
     titulo: acharPorTipo('title')?.title?.text ?? '(sem título)',
     url: normalizarUrl(meta?.url),

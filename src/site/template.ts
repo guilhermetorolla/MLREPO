@@ -79,7 +79,7 @@ function cartao(i: ItemSite): string {
     o.precoAnterior && o.precoAnterior > o.precoAtual
       ? Math.floor((1 - o.precoAtual / o.precoAnterior) * 100)
       : undefined
-  const foto = urlImagem(o.imagemId)
+  const foto = urlImagem(o.imagemId, o.imagemUrl)
   const href = escapar(i.link)
 
   return `<article class="cartao">
@@ -136,7 +136,7 @@ export function gerarFeed(itens: ItemSite[], geradoEm: Date): string {
         titulo: i.item.oferta.titulo,
         preco: i.item.oferta.precoAtual,
         preco_anterior: i.item.oferta.precoAnterior ?? null,
-        imagem: urlImagem(i.item.oferta.imagemId) ?? null,
+        imagem: urlImagem(i.item.oferta.imagemId, i.item.oferta.imagemUrl) ?? null,
         veredito: avaliarPreco(i.item.oferta.precoAtual, i.faixa),
         menor_observado: i.faixa?.min ?? null,
         maior_observado: i.faixa?.max ?? null,

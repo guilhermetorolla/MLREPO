@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3'
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
-import type { HistoricoPreco, Oferta } from './tipos.ts'
+import { partesDoId, type HistoricoPreco, type Oferta } from './tipos.ts'
 
 export const CAMINHO_PADRAO = new URL('../data/ofertas.db', import.meta.url).pathname
 
@@ -27,7 +27,9 @@ function migrar(db: Database.Database): void {
       vendas         INTEGER,
       rating         REAL,
       categoria      TEXT,
+      marketplace    TEXT NOT NULL DEFAULT 'ml',
       imagem_id      TEXT,
+      imagem_url     TEXT,
       visto_em       TEXT NOT NULL
     );
 
@@ -134,6 +136,25 @@ function migrar(db: Database.Database): void {
   if (!colunas.includes('imagem_id')) {
     db.exec('ALTER TABLE ofertas ADD COLUMN imagem_id TEXT')
   }
+  if (!colunas.includes('marketplace')) {
+    db.exec("ALTER TABLE ofertas ADD COLUMN marketplace TEXT NOT NULL DEFAULT 'ml'")
+  }
+  if (!colunas.includes('imagem_url')) {
+    db.exec('ALTER TABLE ofertas ADD COLUMN imagem_url TEXT')
+  }
+
+  // Registros gravados antes do prefixo eram todos do Mercado Livre. Renomear
+  // a chave aqui evita duplicar cada oferta na próxima coleta.
+  const semPrefixo = db
+    .prepare("SELECT COUNT(*) AS c FROM ofertas WHERE item_id NOT LIKE '%:%'")
+    .get() as { c: number }
+  if (semPrefixo.c > 0) {
+    db.transaction(() => {
+      for (const tabela of ['ofertas', 'precos', 'links', 'publicacoes', 'decisoes', 'agendamentos']) {
+        db.exec(`UPDATE ${tabela} SET item_id = 'ml:' || item_id WHERE item_id NOT LIKE '%:%'`)
+      }
+    })()
+  }
 
   const colPub = (db.prepare('PRAGMA table_info(publicacoes)').all() as { name: string }[]).map((c) => c.name)
   if (!colPub.includes('automacao_id')) {
@@ -144,13 +165,16 @@ function migrar(db: Database.Database): void {
 export function salvarOfertas(db: Database.Database, ofertas: Oferta[]): void {
   const upsert = db.prepare(`
     INSERT INTO ofertas (item_id, product_id, titulo, url, preco_atual, preco_anterior,
-                         comissao_pct, comissao_extra, vendas, rating, categoria, imagem_id, visto_em)
+                         comissao_pct, comissao_extra, vendas, rating, categoria,
+                         marketplace, imagem_id, imagem_url, visto_em)
     VALUES (@itemId, @productId, @titulo, @url, @precoAtual, @precoAnterior,
-            @comissaoPct, @comissaoExtra, @vendas, @rating, @categoria, @imagemId, @vistoEm)
+            @comissaoPct, @comissaoExtra, @vendas, @rating, @categoria,
+            @marketplace, @imagemId, @imagemUrl, @vistoEm)
     ON CONFLICT(item_id) DO UPDATE SET
       preco_atual = excluded.preco_atual, preco_anterior = excluded.preco_anterior,
       comissao_pct = excluded.comissao_pct, comissao_extra = excluded.comissao_extra,
       vendas = excluded.vendas, rating = excluded.rating, imagem_id = excluded.imagem_id,
+      imagem_url = excluded.imagem_url, marketplace = excluded.marketplace,
       visto_em = excluded.visto_em
   `)
   const preco = db.prepare('INSERT INTO precos (item_id, preco, visto_em) VALUES (?, ?, ?)')
@@ -169,7 +193,9 @@ export function salvarOfertas(db: Database.Database, ofertas: Oferta[]): void {
         vendas: o.vendas ?? null,
         rating: o.rating ?? null,
         categoria: o.categoria ?? null,
+        marketplace: o.marketplace ?? partesDoId(o.itemId).marketplace,
         imagemId: o.imagemId ?? null,
+        imagemUrl: o.imagemUrl ?? null,
         vistoEm: o.vistoEm,
       })
       preco.run(o.itemId, o.precoAtual, o.vistoEm)
@@ -274,7 +300,8 @@ export function ofertasSalvas(db: Database.Database): Oferta[] {
       `SELECT item_id AS itemId, product_id AS productId, titulo, url,
               preco_atual AS precoAtual, preco_anterior AS precoAnterior,
               comissao_pct AS comissaoPct, comissao_extra AS comissaoExtra,
-              vendas, rating, categoria, imagem_id AS imagemId, visto_em AS vistoEm
+              vendas, rating, categoria, marketplace, imagem_id AS imagemId,
+              imagem_url AS imagemUrl, visto_em AS vistoEm
        FROM ofertas`,
     )
     .all() as any[]
@@ -287,6 +314,7 @@ export function ofertasSalvas(db: Database.Database): Oferta[] {
     rating: l.rating ?? undefined,
     categoria: l.categoria ?? undefined,
     imagemId: l.imagemId ?? undefined,
+    imagemUrl: l.imagemUrl ?? undefined,
   }))
 }
 
@@ -471,7 +499,8 @@ export function ofertaPorId(db: Database.Database, itemId: string): Oferta | und
       `SELECT item_id AS itemId, product_id AS productId, titulo, url,
               preco_atual AS precoAtual, preco_anterior AS precoAnterior,
               comissao_pct AS comissaoPct, comissao_extra AS comissaoExtra,
-              vendas, rating, categoria, imagem_id AS imagemId, visto_em AS vistoEm
+              vendas, rating, categoria, marketplace, imagem_id AS imagemId,
+              imagem_url AS imagemUrl, visto_em AS vistoEm
        FROM ofertas WHERE item_id = ?`,
     )
     .get(itemId) as any
@@ -485,6 +514,7 @@ export function ofertaPorId(db: Database.Database, itemId: string): Oferta | und
     rating: l.rating ?? undefined,
     categoria: l.categoria ?? undefined,
     imagemId: l.imagemId ?? undefined,
+    imagemUrl: l.imagemUrl ?? undefined,
   }
 }
 
