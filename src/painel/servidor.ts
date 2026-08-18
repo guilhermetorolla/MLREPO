@@ -37,6 +37,10 @@ import {
   salvarBusca,
   salvarCupom,
   salvarLista,
+  apagarConfig,
+  config,
+  gravarConfig,
+  lerConfig,
   type DestinoLinha,
 } from '../db.ts'
 import { melhorCupom, type Cupom } from '../motor/cupom.ts'
@@ -58,7 +62,7 @@ carregarEnv()
 const PORTA = Number(process.env.PAINEL_PORTA ?? 4477)
 const HOST = process.env.PAINEL_HOST ?? '0.0.0.0'
 const TOKEN = process.env.PAINEL_TOKEN ?? ''
-const ETIQUETA = process.env.ETIQUETA ?? ''
+let ETIQUETA = process.env.ETIQUETA ?? ''
 
 if (!TOKEN) {
   console.error(
@@ -105,6 +109,7 @@ app.addHook('preHandler', async (req: FastifyRequest, reply: FastifyReply) => {
 // ─── Fila ────────────────────────────────────────────────────────
 
 app.get('/api/fila', async () => {
+  ETIQUETA = config(db, 'etiqueta', 'ETIQUETA') ?? ''
   const cfg = corteAtual()
   const mapaDecisoes = decisoes(db)
   const faixas = faixasPreco(db)
@@ -304,6 +309,87 @@ app.delete('/api/buscas/:id', async (req) => {
   return { ok: true }
 })
 
+/**
+ * Configuração pela tela, com validação de verdade antes de gravar.
+ *
+ * Guardar credencial que não funciona é pior que não guardar: o checklist
+ * ficaria verde e o motor falharia calado toda madrugada.
+ */
+app.post('/api/config/telegram', async (req, reply) => {
+  const { token, canal } = (req.body ?? {}) as { token?: string; canal?: string }
+  if (!token) return reply.code(400).send({ erro: 'informe o token do BotFather' })
+
+  let bot: any
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${token}/getMe`)
+    bot = await r.json()
+  } catch (e) {
+    return reply.code(502).send({ erro: `não consegui falar com o Telegram: ${(e as Error).message}` })
+  }
+  if (!bot?.ok) {
+    return reply.code(400).send({ erro: `o Telegram recusou o token: ${bot?.description ?? 'inválido'}` })
+  }
+
+  gravarConfig(db, 'telegram_token', token)
+  if (canal) gravarConfig(db, 'telegram_canal', canal)
+  registrarEvento(db, 'info', 'config', `bot do Telegram conectado: @${bot.result.username}`)
+  return { ok: true, bot: { username: bot.result.username, nome: bot.result.first_name } }
+})
+
+/** Confere se o bot consegue mesmo publicar no destino, antes de você confiar. */
+app.post('/api/config/testar-destino', async (req, reply) => {
+  const { chatId } = (req.body ?? {}) as { chatId?: string }
+  const token = config(db, 'telegram_token', 'TELEGRAM_BOT_TOKEN')
+  if (!token) return reply.code(400).send({ erro: 'conecte o Telegram antes' })
+  if (!chatId) return reply.code(400).send({ erro: 'informe o chat_id' })
+
+  const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: '✅ Teste do painel. Se você está lendo isto, o bot consegue publicar aqui.',
+    }),
+  })
+  const corpo = (await r.json()) as any
+  if (!corpo?.ok) {
+    return reply.code(400).send({
+      erro: `o Telegram recusou: ${corpo?.description ?? 'erro desconhecido'}`,
+      dica: 'o bot precisa ser ADMINISTRADOR do grupo ou canal',
+    })
+  }
+  return { ok: true }
+})
+
+app.post('/api/config/shopee', async (req, reply) => {
+  const { appId, appSecret } = (req.body ?? {}) as { appId?: string; appSecret?: string }
+  if (!appId || !appSecret) return reply.code(400).send({ erro: 'informe App ID e Chave Secreta' })
+
+  const { FonteShopee } = await import('../fontes/shopee.ts')
+  try {
+    await new FonteShopee(appId, appSecret).buscar({ paginas: 1 })
+  } catch (e) {
+    return reply.code(400).send({ erro: `a Shopee recusou as credenciais: ${(e as Error).message}` })
+  }
+
+  gravarConfig(db, 'shopee_app_id', appId)
+  gravarConfig(db, 'shopee_app_secret', appSecret)
+  registrarEvento(db, 'info', 'config', 'credenciais da Shopee validadas e salvas')
+  return { ok: true }
+})
+
+app.post('/api/config/etiqueta', async (req, reply) => {
+  const { etiqueta } = (req.body ?? {}) as { etiqueta?: string }
+  if (!etiqueta) return reply.code(400).send({ erro: 'informe a etiqueta' })
+  gravarConfig(db, 'etiqueta', etiqueta)
+  return { ok: true }
+})
+
+app.delete('/api/config/:chave', async (req) => {
+  apagarConfig(db, (req.params as { chave: string }).chave)
+  return { ok: true }
+})
+
 // ─── Integrações (tela de configurações) ─────────────────────────
 
 app.get('/api/integracoes', async () => {
@@ -327,10 +413,15 @@ app.get('/api/integracoes', async () => {
   return {
     marketplaces: [...fontesEstado, ...linksEstado],
     telegram: {
-      configurado: Boolean(process.env.TELEGRAM_BOT_TOKEN),
-      canal: process.env.TELEGRAM_CANAL ?? null,
+      // Nunca devolve o token: só o suficiente para a tela mostrar o estado.
+      configurado: Boolean(config(db, 'telegram_token', 'TELEGRAM_BOT_TOKEN')),
+      canal: config(db, 'telegram_canal', 'TELEGRAM_CANAL') ?? null,
+      fonte: lerConfig(db, 'telegram_token') ? 'painel' : process.env.TELEGRAM_BOT_TOKEN ? 'arquivo .env' : null,
     },
-    etiqueta: ETIQUETA || null,
+    shopee: {
+      configurado: Boolean(config(db, 'shopee_app_id', 'SHOPEE_APP_ID')),
+    },
+    etiqueta: config(db, 'etiqueta', 'ETIQUETA') ?? null,
   }
 })
 
@@ -477,6 +568,7 @@ const ACOES: Record<string, { rotulo: string; arquivo: string; args?: string[] }
   simular: { rotulo: 'Simular rodada do motor', arquivo: 'motor.ts', args: ['--simular'] },
   publicar: { rotulo: 'Rodar motor de verdade', arquivo: 'motor.ts' },
   site: { rotulo: 'Regerar o site', arquivo: 'site.ts' },
+  entrar: { rotulo: 'Abrir navegador para login no Mercado Livre', arquivo: 'entrar.ts' },
 }
 
 app.post('/api/acoes/:nome', async (req, reply) => {
@@ -529,6 +621,7 @@ app.get('/api/resumo', async () => {
         titulo: 'Cadastrar um grupo ou canal',
         feito: listaDestinos.length > 0,
         detalhe: listaDestinos.length > 0 ? `${listaDestinos.length} destinos` : 'nenhum destino',
+        tela: 'destinos',
       },
       {
         chave: 'automacao',
@@ -539,14 +632,16 @@ app.get('/api/resumo', async () => {
           : listaAutomacoes.length > 0
             ? 'criada, mas pausada'
             : 'nenhuma automação',
+        tela: 'automacoes',
       },
       {
         chave: 'telegram',
         titulo: 'Conectar o Telegram',
-        feito: Boolean(process.env.TELEGRAM_BOT_TOKEN),
-        detalhe: process.env.TELEGRAM_BOT_TOKEN
-          ? 'bot configurado'
-          : 'falta TELEGRAM_BOT_TOKEN no .env',
+        feito: Boolean(config(db, 'telegram_token', 'TELEGRAM_BOT_TOKEN')),
+        detalhe: config(db, 'telegram_token', 'TELEGRAM_BOT_TOKEN')
+          ? 'bot conectado'
+          : 'cole o token do BotFather',
+        tela: 'config',
       },
     ],
     metricas: {

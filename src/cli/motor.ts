@@ -11,6 +11,7 @@ import {
   marcarAgendamento,
   ofertasSalvas,
   publicacoesRecentes,
+  config,
   publicadosNoDestino,
   registrarEvento,
   registrarPublicacao,
@@ -44,16 +45,18 @@ const seco = process.argv.includes('--simular')
 
 const db = abrir()
 
+const tokenTelegram = config(db, 'telegram_token', 'TELEGRAM_BOT_TOKEN')
+
 // Sem token do Telegram não dá para publicar. Isso NÃO é erro: é o estado
 // normal enquanto o bot não foi criado. Sair em silêncio com código 0 evita
 // que o agendamento do sistema encha o log de exceção a cada 15 minutos.
-if (!seco && !process.env.TELEGRAM_BOT_TOKEN) {
-  console.log('TELEGRAM_BOT_TOKEN ausente — nada a publicar. Configure o .env para ligar o motor.')
+if (!seco && !tokenTelegram) {
+  console.log('Telegram não conectado — nada a publicar. Conecte pelo painel, em Configurações.')
   process.exit(0)
 }
 
-const tg = seco ? undefined : new Telegram(exigir('TELEGRAM_BOT_TOKEN'))
-const etiqueta = exigir('ETIQUETA')
+const tg = seco ? undefined : new Telegram(tokenTelegram!)
+const etiqueta = config(db, 'etiqueta', 'ETIQUETA') ?? exigir('ETIQUETA')
 
 const provider: LinkProvider =
   process.env.LINK_PROVIDER === 'montado'

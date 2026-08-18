@@ -247,7 +247,7 @@ async function telaDestinos() {
     destinos.length === 0
       ? '<p class="vazio">Nenhum destino cadastrado.</p>'
       : `<table class="tabela">
-      <thead><tr><th>Destino</th><th>chat_id</th><th>Janelas</th><th class="num">Limite</th><th class="num">Intervalo</th><th>Ativo</th><th></th></tr></thead>
+      <thead><tr><th>Destino</th><th>chat_id</th><th>Janelas</th><th class="num">Limite</th><th class="num">Intervalo</th><th>Ativo</th><th class="num">Ações</th></tr></thead>
       <tbody>${destinos
         .map(
           (d) => `<tr>
@@ -257,7 +257,10 @@ async function telaDestinos() {
           <td class="num">${d.limiteDiario}/dia</td>
           <td class="num">${d.intervaloMinutos} min</td>
           <td><button class="botao-fraco" data-alternar="${esc(d.id)}">${d.ativo ? 'ligado' : 'desligado'}</button></td>
-          <td class="num"><button class="botao-perigo" data-apagar="${esc(d.id)}">Remover</button></td>
+          <td class="num">
+            <button class="botao-mini" data-testar-destino="${esc(d.chatId)}">testar envio</button>
+            <button class="botao-perigo" data-apagar="${esc(d.id)}">Remover</button>
+          </td>
         </tr>`,
         )
         .join('')}</tbody></table>`
@@ -365,7 +368,15 @@ async function telaInicio() {
               <span class="titulo-passo">${esc(p.titulo)}</span><br>
               <span class="detalhe-passo">${esc(p.detalhe)}</span>
             </span>
-            ${!p.feito && p.acao ? `<button class="botao" data-acao-motor="${esc(p.acao)}">Fazer agora</button>` : ''}
+            ${
+              p.feito
+                ? ''
+                : p.acao
+                  ? `<button class="botao" data-acao-motor="${esc(p.acao)}">Fazer agora</button>`
+                  : p.tela
+                    ? `<button class="botao" data-ir-para="${esc(p.tela)}">Configurar</button>`
+                    : ''
+            }
           </div>`,
         )
         .join('')}
@@ -390,41 +401,72 @@ async function telaInicio() {
 
 async function telaConfig() {
   const i = await api('/integracoes')
-  const linha = (m) => `<tr>
+
+  const linhaMarketplace = (m) => `<tr>
     <td><b>${esc(m.nome)}</b><br><span style="color:var(--tenue);font-size:12px">${m.tipo === 'fonte' ? 'busca de ofertas' : 'geração de link'}</span></td>
-    <td>${m.ok ? '<span class="selo selo-ok">conectado</span>' : '<span class="selo selo-nao">falta configurar</span>'}</td>
+    <td>${m.ok ? '<span class="selo selo-ok">pronto</span>' : '<span class="selo selo-nao">falta configurar</span>'}</td>
     <td style="color:var(--fraco);font-size:12px">${esc(m.motivo ?? '')}</td>
   </tr>`
 
   return `
   <div class="cabecalho-tela">
-    <h2>Configurações</h2>
-    <p>Suas conexões e integrações. As credenciais ficam no arquivo <code>.env</code>, nunca no navegador.</p>
+    <div class="titulo-area">
+      <h2>Configurações</h2>
+      <p>Suas conexões. O que você salvar aqui vale para o motor, que roda em outro processo.</p>
+    </div>
   </div>
 
-  <div class="aviso info">A Shopee tem API oficial de afiliado — geração de link sem navegador e sem captcha.
-  O Mercado Livre não tem, e por isso depende de sessão de navegador. Peça o acesso em
-  <b>affiliate.shopee.com.br</b>, aba Open API: a análise leva de 5 a 15 dias.</div>
+  <div class="cartao-form">
+    <h3 style="margin-bottom:4px">Telegram ${i.telegram.configurado ? '<span class="selo selo-ok">conectado</span>' : ''}</h3>
+    <p class="ajuda" style="margin-bottom:14px">
+      Fale com <b>@BotFather</b> no Telegram, mande <code>/newbot</code> e cole o token aqui.
+      Eu confiro com o Telegram antes de salvar — credencial inválida não fica verde no checklist.
+      ${i.telegram.configurado ? `<br>Origem: ${esc(i.telegram.fonte ?? '')}.` : ''}
+    </p>
+    <div class="grade-form">
+      <label>Token do bot <input id="tg-token" type="password" placeholder="123456:ABC-DEF..." autocomplete="off"></label>
+      <label>Canal padrão (opcional) <input id="tg-canal" placeholder="@meucanal" value="${esc(i.telegram.canal ?? '')}"></label>
+    </div>
+    <div class="acoes-form"><button class="botao" id="salvar-telegram">Validar e conectar</button></div>
+    <div id="resultado-telegram"></div>
+  </div>
 
-  <table class="tabela" style="margin-bottom:22px">
-    <thead><tr><th>Integração</th><th>Situação</th><th>Observação</th></tr></thead>
-    <tbody>${i.marketplaces.map(linha).join('')}</tbody>
-  </table>
+  <div class="cartao-form">
+    <h3 style="margin-bottom:4px">Etiqueta de rastreamento ${i.etiqueta ? '<span class="selo selo-ok">definida</span>' : ''}</h3>
+    <p class="ajuda" style="margin-bottom:14px">É o que separa, no painel do Mercado Livre, quem veio de qual canal.
+    Encontre em Central de afiliados → Ferramentas → Administrar etiquetas.</p>
+    <div class="grade-form">
+      <label>Etiqueta <input id="cfg-etiqueta" placeholder="minhaetiqueta" value="${esc(i.etiqueta ?? '')}"></label>
+    </div>
+    <div class="acoes-form"><button class="botao" id="salvar-etiqueta">Salvar etiqueta</button></div>
+  </div>
+
+  <div class="cartao-form">
+    <h3 style="margin-bottom:4px">Shopee ${i.shopee?.configurado ? '<span class="selo selo-ok">conectada</span>' : ''}</h3>
+    <p class="ajuda" style="margin-bottom:14px">
+      Peça acesso em <b>affiliate.shopee.com.br</b> → aba Open API. A análise é manual e leva de 5 a 15 dias.
+      As credenciais são testadas contra a API antes de salvar.
+    </p>
+    <div class="grade-form">
+      <label>App ID <input id="sp-id" placeholder="numérico" autocomplete="off"></label>
+      <label>Chave secreta <input id="sp-secret" type="password" autocomplete="off"></label>
+    </div>
+    <div class="acoes-form"><button class="botao" id="salvar-shopee">Validar e salvar</button></div>
+    <div id="resultado-shopee"></div>
+  </div>
+
+  <div class="cartao-form">
+    <h3 style="margin-bottom:4px">Mercado Livre</h3>
+    <p class="ajuda" style="margin-bottom:14px">
+      Não existe API de afiliado no ML: a busca usa a sua sessão num navegador do projeto.
+      É preciso fazer login uma vez — depois a sessão fica salva e a coleta roda sozinha.
+    </p>
+    <div class="acoes-form"><button class="botao-fraco" data-acao-motor="entrar">Abrir navegador para login</button></div>
+  </div>
 
   <table class="tabela">
-    <thead><tr><th>Envio</th><th>Situação</th><th>Observação</th></tr></thead>
-    <tbody>
-      <tr>
-        <td><b>Telegram</b><br><span style="color:var(--tenue);font-size:12px">bot de publicação</span></td>
-        <td>${i.telegram.configurado ? '<span class="selo selo-ok">conectado</span>' : '<span class="selo selo-nao">falta configurar</span>'}</td>
-        <td style="color:var(--fraco);font-size:12px">${i.telegram.configurado ? esc(i.telegram.canal ?? 'sem canal padrão') : 'defina TELEGRAM_BOT_TOKEN no .env'}</td>
-      </tr>
-      <tr>
-        <td><b>Etiqueta de rastreamento</b><br><span style="color:var(--tenue);font-size:12px">atribuição no painel do ML</span></td>
-        <td>${i.etiqueta ? '<span class="selo selo-ok">definida</span>' : '<span class="selo selo-nao">sem etiqueta</span>'}</td>
-        <td style="color:var(--fraco);font-size:12px">${esc(i.etiqueta ?? 'defina ETIQUETA no .env')}</td>
-      </tr>
-    </tbody>
+    <thead><tr><th>Integração</th><th>Situação</th><th>Observação</th></tr></thead>
+    <tbody>${i.marketplaces.map(linhaMarketplace).join('')}</tbody>
   </table>`
 }
 
@@ -1030,5 +1072,91 @@ conteudo.addEventListener('click', async (ev) => {
   if (alvo.dataset.apagarBusca) {
     await api(`/buscas/${encodeURIComponent(alvo.dataset.apagarBusca)}`, { method: 'DELETE' })
     return render()
+  }
+})
+
+// ─── Configurações: salvar com validação e navegar pelo checklist ─
+
+function irPara(nomeTela) {
+  tela = nomeTela
+  document.querySelectorAll('.item').forEach((x) => x.classList.toggle('ativa', x.dataset.tela === nomeTela))
+  const ativo = document.querySelector('.item.ativa')
+  if (ativo) document.getElementById('trilha-atual').textContent = ativo.textContent.trim().replace(/\d+$/, '')
+  render()
+}
+
+conteudo.addEventListener('click', async (ev) => {
+  const alvo = ev.target
+  if (!(alvo instanceof HTMLElement)) return
+  const botao = alvo.closest('[data-ir-para]')
+  if (botao) return irPara(botao.dataset.irPara)
+
+  const val = (id) => document.getElementById(id)?.value.trim() ?? ''
+  const aviso = (onde, texto, tipo = 'info') => {
+    const caixa = document.getElementById(onde)
+    if (caixa) caixa.innerHTML = `<div class="aviso ${tipo}" style="margin-top:12px">${texto}</div>`
+  }
+
+  if (alvo.id === 'salvar-telegram') {
+    alvo.disabled = true
+    alvo.textContent = 'validando…'
+    try {
+      const r = await api('/config/telegram', {
+        method: 'POST',
+        body: JSON.stringify({ token: val('tg-token'), canal: val('tg-canal') }),
+      })
+      aviso('resultado-telegram', `Conectado ao bot <b>@${esc(r.bot.username)}</b>. Agora cadastre o grupo ou canal em <b>Grupos e canais</b>.`)
+      atualizarBadge()
+    } catch (e) {
+      aviso('resultado-telegram', esc(e.message), 'erro')
+    } finally {
+      alvo.disabled = false
+      alvo.textContent = 'Validar e conectar'
+    }
+    return
+  }
+
+  if (alvo.id === 'salvar-etiqueta') {
+    try {
+      await api('/config/etiqueta', { method: 'POST', body: JSON.stringify({ etiqueta: val('cfg-etiqueta') }) })
+      render()
+    } catch (e) {
+      alert(e.message)
+    }
+    return
+  }
+
+  if (alvo.id === 'salvar-shopee') {
+    alvo.disabled = true
+    alvo.textContent = 'testando na Shopee…'
+    try {
+      await api('/config/shopee', {
+        method: 'POST',
+        body: JSON.stringify({ appId: val('sp-id'), appSecret: val('sp-secret') }),
+      })
+      aviso('resultado-shopee', 'Credenciais válidas e salvas. A Shopee entra na próxima coleta.')
+    } catch (e) {
+      aviso('resultado-shopee', esc(e.message), 'erro')
+    } finally {
+      alvo.disabled = false
+      alvo.textContent = 'Validar e salvar'
+    }
+    return
+  }
+
+  if (alvo.dataset.testarDestino) {
+    const original = alvo.textContent
+    alvo.textContent = 'enviando…'
+    try {
+      await api('/config/testar-destino', {
+        method: 'POST',
+        body: JSON.stringify({ chatId: alvo.dataset.testarDestino }),
+      })
+      alvo.textContent = 'chegou!'
+    } catch (e) {
+      alert(`O Telegram recusou: ${e.message}\n\nLembre: o bot precisa ser ADMINISTRADOR do grupo ou canal.`)
+      alvo.textContent = original
+    }
+    setTimeout(() => (alvo.textContent = original), 2500)
   }
 })

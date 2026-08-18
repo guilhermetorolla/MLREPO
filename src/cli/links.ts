@@ -1,5 +1,5 @@
 import { carregarEnv, exigir } from '../config.ts'
-import { abrir, historicos, linkSalvo, ofertasSalvas, salvarLink } from '../db.ts'
+import { abrir, config, historicos, linkSalvo, ofertasSalvas, salvarLink } from '../db.ts'
 import { agruparPorMarketplace, linkPara } from '../fontes/registry.ts'
 import { ranquear } from '../score.ts'
 import { MARKETPLACES } from '../tipos.ts'
@@ -11,9 +11,8 @@ carregarEnv()
  * de cada marketplace — o do ML passa por navegador, o da Shopee é API.
  */
 const quantos = Number(process.argv.find((a) => /^\d+$/.test(a)) ?? process.env.SITE_ITENS ?? 24)
-const etiqueta = exigir('ETIQUETA')
-
 const db = abrir()
+const etiqueta = config(db, 'etiqueta', 'ETIQUETA') ?? exigir('ETIQUETA')
 const fila = ranquear(ofertasSalvas(db), { historicos: historicos(db) }).slice(0, quantos)
 const faltando = fila.filter((i) => !linkSalvo(db, i.oferta.itemId, etiqueta)).map((i) => i.oferta)
 

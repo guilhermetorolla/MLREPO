@@ -87,6 +87,15 @@ function migrar(db: Database.Database): void {
       ativo             INTEGER NOT NULL DEFAULT 1
     );
 
+    -- Configuração feita pela tela (token do bot, credencial da Shopee,
+    -- etiqueta). Fica no banco para o painel poder gravar; o .env continua
+    -- valendo como padrão de quem prefere arquivo.
+    CREATE TABLE IF NOT EXISTS config (
+      chave       TEXT PRIMARY KEY,
+      valor       TEXT NOT NULL,
+      atualizado  TEXT NOT NULL
+    );
+
     -- Cupom de desconto, com as regras conferidas produto a produto.
     CREATE TABLE IF NOT EXISTS cupons (
       codigo         TEXT PRIMARY KEY,
@@ -787,4 +796,31 @@ export function salvarBusca(db: Database.Database, b: Busca): void {
 
 export function apagarBusca(db: Database.Database, id: string): void {
   db.prepare('DELETE FROM buscas WHERE id = ?').run(id)
+}
+
+// ─── Configuração pela tela ──────────────────────────────────────
+
+export function lerConfig(db: Database.Database, chave: string): string | undefined {
+  const r = db.prepare('SELECT valor FROM config WHERE chave = ?').get(chave) as { valor: string } | undefined
+  return r?.valor
+}
+
+export function gravarConfig(db: Database.Database, chave: string, valor: string): void {
+  db.prepare(
+    `INSERT INTO config (chave, valor, atualizado) VALUES (?, ?, ?)
+     ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor, atualizado = excluded.atualizado`,
+  ).run(chave, valor, new Date().toISOString())
+}
+
+export function apagarConfig(db: Database.Database, chave: string): void {
+  db.prepare('DELETE FROM config WHERE chave = ?').run(chave)
+}
+
+/**
+ * Valor efetivo de uma configuração: o que foi salvo na tela tem prioridade
+ * sobre o .env. Sem isso, configurar pelo painel não teria efeito nenhum no
+ * motor, que roda em outro processo.
+ */
+export function config(db: Database.Database, chave: string, variavelEnv: string): string | undefined {
+  return lerConfig(db, chave) ?? process.env[variavelEnv] ?? undefined
 }

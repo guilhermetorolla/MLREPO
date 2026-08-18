@@ -1,5 +1,22 @@
+import { abrir, lerConfig } from '../db.ts'
 import { FonteMercadoLivre, LinkMercadoLivre } from './mercadolivre.ts'
 import { FonteShopee, LinkShopee } from './shopee.ts'
+
+/**
+ * Credencial salva pela tela vence a do .env: quem configurou no painel espera
+ * que o motor use aquilo, e o motor roda em outro processo.
+ */
+function credenciaisShopee(): [string, string] {
+  const db = abrir()
+  try {
+    return [
+      lerConfig(db, 'shopee_app_id') ?? process.env.SHOPEE_APP_ID ?? '',
+      lerConfig(db, 'shopee_app_secret') ?? process.env.SHOPEE_APP_SECRET ?? '',
+    ]
+  } finally {
+    db.close()
+  }
+}
 import type { FonteDeOfertas, ProvedorDeLink } from './tipos.ts'
 import { partesDoId, type Marketplace } from '../tipos.ts'
 
@@ -8,11 +25,11 @@ import { partesDoId, type Marketplace } from '../tipos.ts'
  * Acrescentar a Amazon é adicionar duas linhas aqui e um arquivo em fontes/.
  */
 export function fontes(): FonteDeOfertas[] {
-  return [new FonteMercadoLivre(), new FonteShopee()]
+  return [new FonteMercadoLivre(), new FonteShopee(...credenciaisShopee())]
 }
 
 export function provedoresDeLink(): ProvedorDeLink[] {
-  return [new LinkMercadoLivre(), new LinkShopee()]
+  return [new LinkMercadoLivre(), new LinkShopee(...credenciaisShopee())]
 }
 
 export function fontePara(marketplace: Marketplace): FonteDeOfertas | undefined {

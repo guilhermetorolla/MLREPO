@@ -4,6 +4,7 @@ import {
   abrir,
   faixasPreco,
   historicos,
+  lerConfig,
   linkSalvo,
   ofertasSalvas,
   publicadosRecentemente,
@@ -14,10 +15,11 @@ import { gerarFeed, gerarHtml, type ItemSite } from '../site/template.ts'
 carregarEnv()
 
 const SAIDA = new URL('../../docs/', import.meta.url).pathname
-const etiqueta = process.env.ETIQUETA_SITE || process.env.ETIQUETA || ''
+const etiquetaDoEnv = process.env.ETIQUETA_SITE || process.env.ETIQUETA || ''
 const quantos = Number(process.env.SITE_ITENS ?? 24)
 
 const db = abrir()
+const etiqueta = etiquetaDoEnv || lerConfig(db, 'etiqueta') || ''
 const faixas = faixasPreco(db)
 
 // O site publica a mesma curadoria do canal, com a etiqueta do site — é assim
