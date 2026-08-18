@@ -1,4 +1,10 @@
-import type { OfertaPontuada } from './tipos.ts'
+import { urlImagem, type OfertaPontuada } from './tipos.ts'
+
+/**
+ * O Telegram corta legenda de foto em 1024 caracteres. Acima disso a API
+ * recusa o envio inteiro, então o motor cai para mensagem de texto.
+ */
+const LIMITE_LEGENDA = 1024
 
 const API = 'https://api.telegram.org/bot'
 
@@ -26,9 +32,30 @@ export class Telegram {
 
   /** Manda a oferta para VOCÊ decidir. Nada vai ao canal sem esse passo. */
   async pedirAprovacao(chatId: string, item: OfertaPontuada, link: string): Promise<void> {
+    const foto = urlImagem(item.oferta.imagemId, item.oferta.imagemUrl)
+    const texto = montarTexto(item, link)
+
+    if (foto && texto.length <= LIMITE_LEGENDA) {
+      await this.chamar('sendPhoto', {
+        chat_id: chatId,
+        photo: foto,
+        caption: texto,
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '✅ Publicar', callback_data: `ok:${item.oferta.itemId}` },
+              { text: '❌ Descartar', callback_data: `no:${item.oferta.itemId}` },
+            ],
+          ],
+        },
+      })
+      return
+    }
+
     await this.chamar('sendMessage', {
       chat_id: chatId,
-      text: montarTexto(item, link),
+      text: texto,
       parse_mode: 'HTML',
       link_preview_options: { is_disabled: false },
       reply_markup: {
@@ -42,12 +69,48 @@ export class Telegram {
     })
   }
 
+  /**
+   * Publica com a FOTO do produto e o texto como legenda.
+   *
+   * Não dá para contar com a prévia automática do link: ela depende de o site
+   * devolver og:image, e a URL com parâmetros de afiliado não devolveu — o
+   * card chegou só com título e endereço. Post de oferta sem imagem converte
+   * muito menos, então a foto vai explícita.
+   *
+   * Sem foto conhecida, ou com legenda longa demais, cai para texto.
+   */
   async publicar(canal: string, item: OfertaPontuada, link: string): Promise<void> {
+    const texto = montarTextoPublico(item, link)
+    const foto = urlImagem(item.oferta.imagemId, item.oferta.imagemUrl)
+
+    if (foto && texto.length <= LIMITE_LEGENDA) {
+      try {
+        await this.chamar('sendPhoto', {
+          chat_id: canal,
+          photo: foto,
+          caption: texto,
+          parse_mode: 'HTML',
+        })
+        return
+      } catch (e) {
+        // Imagem fora do ar ou recusada pelo Telegram: a oferta ainda vale,
+        // então segue como texto em vez de perder a publicação.
+        console.warn(`[telegram] foto recusada, enviando como texto: ${(e as Error).message}`)
+      }
+    }
+
     await this.chamar('sendMessage', {
       chat_id: canal,
-      text: montarTextoPublico(item, link),
+      text: texto,
       parse_mode: 'HTML',
+      link_preview_options: { is_disabled: false },
     })
+  }
+
+  /** Decide o formato do envio — exposto para teste sem rede. */
+  formatoDe(item: OfertaPontuada, link: string): 'foto' | 'texto' {
+    const foto = urlImagem(item.oferta.imagemId, item.oferta.imagemUrl)
+    return foto && montarTextoPublico(item, link).length <= LIMITE_LEGENDA ? 'foto' : 'texto'
   }
 
   async responderCallback(id: string, texto: string): Promise<void> {
@@ -80,11 +143,18 @@ function montarTextoPublico(item: OfertaPontuada, link: string): string {
     o.precoAnterior && o.precoAnterior > o.precoAtual
       ? ` (${Math.round((1 - o.precoAtual / o.precoAnterior) * 100)}% OFF)`
       : ''
+  const social = [
+    o.vendas ? `${o.vendas.toLocaleString('pt-BR')} vendidos` : '',
+    o.rating ? `nota ${String(o.rating).replace('.', ',')}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
   return [
     `🔥 <b>${escapar(o.titulo)}</b>`,
     '',
     `💰 <b>R$ ${fmt(o.precoAtual)}</b>${desconto}`,
-    o.vendas ? `📦 ${o.vendas.toLocaleString('pt-BR')} vendidos` : '',
+    social ? `⭐ ${social}` : '',
     '',
     link,
   ]

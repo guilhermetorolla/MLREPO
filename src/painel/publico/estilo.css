@@ -263,3 +263,13 @@ dialog::backdrop { background: rgba(12,46,49,.5); }
 .passo-acao.perigo .rotulo-acao em { color: var(--vermelho); }
 .passo-acao.secundario .ordem { background: var(--tenue); }
 .passo-acao:focus-visible { outline: 2px solid var(--marca-clara); outline-offset: 2px; }
+
+/* ─── Faixa de tarefa: só existe enquanto algo roda ─── */
+.faixa-tarefa { background: var(--branco); border-bottom: 1px solid var(--linha); }
+.faixa-interna { padding: 10px 26px; display: flex; align-items: center; gap: 12px; }
+.faixa-interna .estado-tarefa { margin-left: 0; }
+
+/* ─── Ações no cabeçalho da tela ─── */
+.cabecalho-tela { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.cabecalho-tela .titulo-area { flex: 1; min-width: 240px; }
+.cabecalho-tela .acoes-tela { display: flex; gap: 8px; flex-wrap: wrap; }

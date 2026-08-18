@@ -51,39 +51,12 @@
       <span class="status" id="status-motor"><span class="ponto"></span> motor ativo</span>
     </header>
 
-    <section class="acoes-barra">
-      <div class="acoes-interna">
-        <button class="passo-acao" data-acao-motor="coletar"
-          title="Lê o feed do seu hub de afiliado e grava as ofertas. Também registra o preço de hoje, que alimenta o histórico.">
-          <span class="ordem">1</span>
-          <span class="rotulo-acao">Buscar ofertas<em>traz dado novo do marketplace</em></span>
-        </button>
-
-        <button class="passo-acao" data-acao-motor="links"
-          title="Gera o link de afiliado das melhores ofertas que ainda não têm. Sem link, nada pode ser publicado.">
-          <span class="ordem">2</span>
-          <span class="rotulo-acao">Gerar links<em>transforma produto em link que paga</em></span>
-        </button>
-
-        <button class="passo-acao" data-acao-motor="simular"
-          title="Roda o motor em modo somente leitura: mostra o que sairia e por quê. Não envia e não grava nada.">
-          <span class="ordem">3</span>
-          <span class="rotulo-acao">Simular rodada<em>ensaio, não envia nada</em></span>
-        </button>
-
-        <button class="passo-acao perigo" data-acao-motor="publicar"
-          title="Publica de verdade no Telegram, nos destinos liberados pela agenda. É a única ação irreversível.">
-          <span class="ordem">4</span>
-          <span class="rotulo-acao">Publicar agora<em>envia de verdade · irreversível</em></span>
-        </button>
-
-        <button class="passo-acao secundario" data-acao-motor="site"
-          title="Reescreve a página estática em docs/, que vai para o GitHub Pages.">
-          <span class="ordem">·</span>
-          <span class="rotulo-acao">Regerar site<em>atualiza a página pública</em></span>
-        </button>
-
+    <!-- Faixa de tarefa: só aparece enquanto algo está rodando. Fica aqui, e
+         não dentro da tela, para o acompanhamento sobreviver à troca de aba. -->
+    <section class="faixa-tarefa oculto" id="faixa-tarefa">
+      <div class="faixa-interna">
         <span id="estado-tarefa" class="estado-tarefa"></span>
+        <button class="botao-mini" id="alternar-log">ver saída</button>
       </div>
       <pre id="log-tarefa" class="log oculto"></pre>
     </section>

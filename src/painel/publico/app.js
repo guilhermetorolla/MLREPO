@@ -63,6 +63,29 @@ function relogio() {
 setInterval(relogio, 30_000)
 relogio()
 
+/**
+ * Cabeçalho de tela com as ações que pertencem àquela tela.
+ * Ação junto do que ela afeta: o resultado aparece na mesma página.
+ */
+function cabecalho(titulo, sub, acoes = []) {
+  return `<div class="cabecalho-tela">
+    <div class="titulo-area">
+      <h2>${esc(titulo)}</h2>
+      <p>${sub}</p>
+    </div>
+    ${
+      acoes.length
+        ? `<div class="acoes-tela">${acoes
+            .map(
+              (a) =>
+                `<button class="${a.perigo ? 'botao-perigo' : a.principal ? 'botao' : 'botao-fraco'}" data-acao-motor="${a.acao}" title="${esc(a.ajuda)}">${esc(a.rotulo)}</button>`,
+            )
+            .join('')}</div>`
+        : ''
+    }
+  </div>`
+}
+
 // ─── Tela: Fila ──────────────────────────────────────────────────
 
 async function telaFila() {
@@ -74,11 +97,16 @@ async function telaFila() {
   const passam = ofertas.filter((o) => o.passaNoCorte).length
   const semLink = ofertas.filter((o) => !o.temLink).length
 
-  const cabecalho = `
-    <h2 class="titulo-secao">Fila de ofertas</h2>
-    <p class="sub">${ofertas.length} na fila · ${passam} passam no corte · ${aprovadas} aprovadas por você${semLink ? ` · ${semLink} ainda sem link` : ''}.
-    Corte: ganho ≥ ${brl(corte.ganhoMinimo)}, nota ≥ ${corte.notaMinima ?? '—'}, vendas ≥ ${corte.vendasMinimas ?? '—'}.</p>
-    <div class="filtros">
+  const topo =
+    cabecalho(
+      'Ofertas',
+      `${ofertas.length} na base · ${passam} passam no corte · ${aprovadas} aprovadas por você${semLink ? ` · <b>${semLink} sem link</b>` : ''}`,
+      [
+        { acao: 'coletar', rotulo: 'Buscar ofertas', principal: true, ajuda: 'Lê o feed do seu hub de afiliado e grava as ofertas, junto com o preço de hoje.' },
+        { acao: 'links', rotulo: 'Gerar links', ajuda: 'Gera o link de afiliado das melhores ofertas que ainda não têm.' },
+      ],
+    ) +
+    `<div class="filtros">
       <input type="search" id="busca" placeholder="buscar por título" value="${esc(filtro.busca)}">
       ${[
         ['todas', 'Todas'],
@@ -91,17 +119,17 @@ async function telaFila() {
     </div>`
 
   if (ofertas.length === 0) {
-    return `${cabecalho}<p class="vazio">Nenhuma oferta na base.<br><br>
-      Use <b>Buscar ofertas no ML</b> ali em cima — ele lê direto do seu hub de afiliado.<br>
+    return `${topo}<p class="vazio">Nenhuma oferta na base.<br><br>
+      Use <b>Buscar ofertas</b> aqui em cima — ele lê direto do seu hub de afiliado.<br>
       Se for a primeira vez, rode <code>npm run entrar</code> no terminal para logar uma vez.</p>`
   }
 
   const visiveis = aplicarFiltro(ofertas)
   if (visiveis.length === 0) {
-    return `${cabecalho}<p class="vazio">Nenhuma oferta com esses filtros.</p>`
+    return `${topo}<p class="vazio">Nenhuma oferta com esses filtros.</p>`
   }
 
-  return cabecalho + visiveis.map(cartaoOferta).join('')
+  return topo + visiveis.map(cartaoOferta).join('')
 }
 
 function aplicarFiltro(ofertas) {
@@ -261,11 +289,17 @@ async function telaMotor() {
           )
           .join('')
 
-  return `
-  <h2 class="titulo-secao">Motor</h2>
-  <p class="sub">Etiqueta em uso: <b>${esc(s.etiqueta ?? 'nenhuma')}</b> · ${s.agendamentosPendentes} programados pendentes.
-  O motor roda por agendamento externo (cron); esta tela mostra o que ele faria agora.</p>
-
+  return (
+    cabecalho(
+      'Motor',
+      `Roda sozinho a cada 15 minutos. Etiqueta: <b>${esc(s.etiqueta ?? 'nenhuma')}</b> · ${s.agendamentosPendentes} programados pendentes.`,
+      [
+        { acao: 'simular', rotulo: 'Simular rodada', principal: true, ajuda: 'Mostra o que sairia agora e por quê. Não envia e não grava nada.' },
+        { acao: 'publicar', rotulo: 'Publicar agora', perigo: true, ajuda: 'Publica de verdade no Telegram, nos destinos liberados. Irreversível.' },
+        { acao: 'site', rotulo: 'Regerar site', ajuda: 'Reescreve a página estática em docs/, que vai para o GitHub Pages.' },
+      ],
+    ) +
+    `
   <div class="aviso">Uma rodada publica no máximo uma oferta por destino liberado.
   Quem controla o ritmo é a janela de cada destino, não a frequência da execução.</div>
 
@@ -280,6 +314,7 @@ async function telaMotor() {
     <thead><tr><th>Quando</th><th>Produto</th><th>Destino</th></tr></thead>
     <tbody>${pubs}</tbody>
   </table>`
+  )
 }
 
 // ─── Roteamento e eventos ────────────────────────────────────────
@@ -715,33 +750,45 @@ const logTarefa = document.getElementById('log-tarefa')
 const badgeErros = document.getElementById('badge-erros')
 let vigiando = null
 
-document.querySelectorAll('[data-acao-motor]').forEach((b) =>
-  b.addEventListener('click', async () => {
-    const nome = b.dataset.acaoMotor
-    if (nome === 'publicar' && !confirm('Isso publica de verdade nos destinos liberados. Confirma?')) return
-    try {
-      const { tarefa } = await api(`/acoes/${nome}`, { method: 'POST' })
-      mostrarTarefa(tarefa)
-      vigiar()
-    } catch (e) {
-      estadoTarefa.className = 'estado-tarefa falhou'
-      estadoTarefa.textContent = e.message
-    }
-  }),
-)
+// Delegação no documento: os botões de ação agora nascem junto com a tela,
+// então não dá para registrar o listener uma vez no carregamento.
+document.addEventListener('click', async (ev) => {
+  const botao = ev.target instanceof HTMLElement ? ev.target.closest('[data-acao-motor]') : null
+  if (!botao) return
+
+  const nome = botao.dataset.acaoMotor
+  if (nome === 'publicar' && !confirm('Isso publica de verdade nos destinos liberados. Confirma?')) return
+  try {
+    const { tarefa } = await api(`/acoes/${nome}`, { method: 'POST' })
+    mostrarTarefa(tarefa)
+    vigiar()
+  } catch (e) {
+    faixa.classList.remove('oculto')
+    estadoTarefa.className = 'estado-tarefa falhou'
+    estadoTarefa.textContent = e.message
+  }
+})
+
+const faixa = document.getElementById('faixa-tarefa')
 
 function mostrarTarefa(t) {
   if (!t) {
-    estadoTarefa.textContent = ''
+    faixa.classList.add('oculto')
     return
   }
   const rotulos = { rodando: 'rodando…', ok: 'concluído', falhou: 'falhou' }
+  faixa.classList.remove('oculto')
   estadoTarefa.className = `estado-tarefa ${t.estado}`
   estadoTarefa.textContent = `${t.rotulo}: ${rotulos[t.estado] ?? t.estado}`
-  logTarefa.classList.remove('oculto')
   logTarefa.textContent = t.linhas.join('\n')
   logTarefa.scrollTop = logTarefa.scrollHeight
+  // Enquanto roda, a saída fica aberta; ao terminar, quem quiser revê pelo botão.
+  if (t.estado === 'rodando') logTarefa.classList.remove('oculto')
 }
+
+document.getElementById('alternar-log').addEventListener('click', () => {
+  logTarefa.classList.toggle('oculto')
+})
 
 function vigiar() {
   if (vigiando) return
