@@ -160,3 +160,37 @@ Sem Docker, sem VM, sem Postgres. Se um dia virar recorrente de verdade, migra �
 - [ ] Fase 3
 
 Nenhuma linha de código escrita até aqui — de propósito. O plano espera aprovação.
+
+---
+
+## Fase 0 — resultado parcial (18/08/2026)
+
+O painel voltou a carregar (o aviso de incidente de 16–17/08 continua na tela, mas os dados
+de 17/08 apareceram). Período 17–18/ago:
+
+```
+Etiqueta                        Cliques  Unidades  Conversão
+torollaguilherme20220711121654     1         0         0%
+```
+
+Antes do teste esse número era **0**, então o clique é nosso.
+
+**Mas o teste foi mal desenhado e não conclui o que precisava.** Os dois links testados em
+17/08 — o montado à mão e o oficial do gerador — usaram a MESMA etiqueta. O painel agrega por
+etiqueta, então o "1" não diz qual dos dois foi creditado. Some-se a isso a possibilidade de
+deduplicação por visitante/dia, e o resultado é ambíguo.
+
+Provado: a etiqueta registra clique e o painel reporta.
+Não provado: se `?matt_word=&matt_tool=` na URL do produto atribui.
+
+**Segunda tentativa, em 18/08:** clique num link montado à mão com uma etiqueta que só ele usa,
+`testemontado18ago`, sem criar nada no painel — se o ML aceitar etiqueta arbitrária vinda da
+URL, ela aparece como linha própria na tabela.
+
+Leitura esperada em 19/08 (o rodapé do painel diz "Dados atualizados às 4h49", ou seja,
+consolidação diária de madrugada).
+
+- Se aparecer a linha `testemontado18ago` → Caminho A confirmado, `LINK_PROVIDER=montado`,
+  geração de link 100% automática.
+- Se não aparecer → pode ser que o ML só aceite etiqueta cadastrada. Nesse caso, repetir com
+  uma etiqueta criada no painel antes de descartar o Caminho A.
