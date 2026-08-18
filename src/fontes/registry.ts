@@ -1,5 +1,6 @@
 import { abrir, lerConfig } from '../db.ts'
 import { FonteMercadoLivre, LinkMercadoLivre } from './mercadolivre.ts'
+import { FonteAmazon, LinkAmazon } from './amazon.ts'
 import { FonteShopee, LinkShopee } from './shopee.ts'
 
 /**
@@ -25,11 +26,11 @@ import { partesDoId, type Marketplace } from '../tipos.ts'
  * Acrescentar a Amazon é adicionar duas linhas aqui e um arquivo em fontes/.
  */
 export function fontes(): FonteDeOfertas[] {
-  return [new FonteMercadoLivre(), new FonteShopee(...credenciaisShopee())]
+  return [new FonteMercadoLivre(), new FonteShopee(...credenciaisShopee()), new FonteAmazon()]
 }
 
 export function provedoresDeLink(): ProvedorDeLink[] {
-  return [new LinkMercadoLivre(), new LinkShopee(...credenciaisShopee())]
+  return [new LinkMercadoLivre(), new LinkShopee(...credenciaisShopee()), new LinkAmazon()]
 }
 
 export function fontePara(marketplace: Marketplace): FonteDeOfertas | undefined {
