@@ -87,6 +87,46 @@ function migrar(db: Database.Database): void {
       ativo             INTEGER NOT NULL DEFAULT 1
     );
 
+    -- Cupom de desconto, com as regras conferidas produto a produto.
+    CREATE TABLE IF NOT EXISTS cupons (
+      codigo         TEXT PRIMARY KEY,
+      marketplace    TEXT NOT NULL DEFAULT 'ml',
+      percentual     REAL,
+      valor_fixo     REAL,
+      compra_minima  REAL,
+      teto_desconto  REAL,
+      categorias     TEXT NOT NULL DEFAULT '[]',
+      itens          TEXT NOT NULL DEFAULT '[]',
+      valido_de      TEXT,
+      valido_ate     TEXT,
+      ativo          INTEGER NOT NULL DEFAULT 1,
+      criado_em      TEXT NOT NULL
+    );
+
+    -- Lista curada à mão. Expira sozinha, como no concorrente: oferta velha
+    -- em lista antiga é a forma mais fácil de publicar preço errado.
+    CREATE TABLE IF NOT EXISTS listas (
+      id         TEXT PRIMARY KEY,
+      nome       TEXT NOT NULL,
+      expira_em  TEXT,
+      criado_em  TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS lista_itens (
+      lista_id     TEXT NOT NULL,
+      item_id      TEXT NOT NULL,
+      adicionado_em TEXT NOT NULL,
+      PRIMARY KEY (lista_id, item_id)
+    );
+
+    -- Busca salva por palavra-chave: alimenta a base sozinha a cada coleta.
+    CREATE TABLE IF NOT EXISTS buscas (
+      id          TEXT PRIMARY KEY,
+      termo       TEXT NOT NULL,
+      marketplace TEXT NOT NULL DEFAULT 'shopee',
+      ativa       INTEGER NOT NULL DEFAULT 1,
+      criado_em   TEXT NOT NULL
+    );
+
     -- Automação: quando enviar e o que enviar. O destino continua guardando
     -- o teto de proteção do grupo, para não depender de quantas automações
     -- mirem nele.
@@ -611,4 +651,140 @@ export function estatisticaAutomacao(
   ).length
 
   return { ultima: u.q ? new Date(u.q) : undefined, enviadosHoje }
+}
+
+// ─── Cupons ──────────────────────────────────────────────────────
+
+import type { Cupom } from './motor/cupom.ts'
+
+export function cupons(db: Database.Database): (Cupom & { marketplace: string })[] {
+  const linhas = db
+    .prepare(
+      `SELECT codigo, marketplace, percentual, valor_fixo AS valorFixo,
+              compra_minima AS compraMinima, teto_desconto AS tetoDesconto,
+              categorias, itens, valido_de AS validoDe, valido_ate AS validoAte, ativo
+       FROM cupons ORDER BY codigo`,
+    )
+    .all() as any[]
+  return linhas.map((l) => ({
+    codigo: l.codigo,
+    marketplace: l.marketplace,
+    percentual: l.percentual ?? undefined,
+    valorFixo: l.valorFixo ?? undefined,
+    compraMinima: l.compraMinima ?? undefined,
+    tetoDesconto: l.tetoDesconto ?? undefined,
+    categorias: JSON.parse(l.categorias),
+    itens: JSON.parse(l.itens),
+    validoDe: l.validoDe ?? undefined,
+    validoAte: l.validoAte ?? undefined,
+    ativo: Boolean(l.ativo),
+  }))
+}
+
+export function salvarCupom(db: Database.Database, c: Cupom & { marketplace?: string }): void {
+  db.prepare(
+    `INSERT INTO cupons (codigo, marketplace, percentual, valor_fixo, compra_minima,
+                         teto_desconto, categorias, itens, valido_de, valido_ate, ativo, criado_em)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(codigo) DO UPDATE SET
+       marketplace = excluded.marketplace, percentual = excluded.percentual,
+       valor_fixo = excluded.valor_fixo, compra_minima = excluded.compra_minima,
+       teto_desconto = excluded.teto_desconto, categorias = excluded.categorias,
+       itens = excluded.itens, valido_de = excluded.valido_de,
+       valido_ate = excluded.valido_ate, ativo = excluded.ativo`,
+  ).run(
+    c.codigo,
+    c.marketplace ?? 'ml',
+    c.percentual ?? null,
+    c.valorFixo ?? null,
+    c.compraMinima ?? null,
+    c.tetoDesconto ?? null,
+    JSON.stringify(c.categorias ?? []),
+    JSON.stringify(c.itens ?? []),
+    c.validoDe ?? null,
+    c.validoAte ?? null,
+    c.ativo === false ? 0 : 1,
+    new Date().toISOString(),
+  )
+}
+
+export function apagarCupom(db: Database.Database, codigo: string): void {
+  db.prepare('DELETE FROM cupons WHERE codigo = ?').run(codigo)
+}
+
+// ─── Listas ──────────────────────────────────────────────────────
+
+export interface Lista {
+  id: string
+  nome: string
+  expiraEm?: string
+  criadoEm: string
+  itens: string[]
+  expirada: boolean
+}
+
+export function listas(db: Database.Database): Lista[] {
+  const agora = new Date()
+  const linhas = db
+    .prepare('SELECT id, nome, expira_em AS expiraEm, criado_em AS criadoEm FROM listas ORDER BY criado_em DESC')
+    .all() as any[]
+  const itens = db.prepare('SELECT lista_id AS l, item_id AS i FROM lista_itens').all() as {
+    l: string
+    i: string
+  }[]
+  return linhas.map((l) => ({
+    ...l,
+    expiraEm: l.expiraEm ?? undefined,
+    itens: itens.filter((x) => x.l === l.id).map((x) => x.i),
+    expirada: Boolean(l.expiraEm && new Date(l.expiraEm) < agora),
+  }))
+}
+
+export function salvarLista(db: Database.Database, id: string, nome: string, horasValidade?: number): void {
+  const expiraEm = horasValidade ? new Date(Date.now() + horasValidade * 3_600_000).toISOString() : null
+  db.prepare(
+    `INSERT INTO listas (id, nome, expira_em, criado_em) VALUES (?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET nome = excluded.nome, expira_em = excluded.expira_em`,
+  ).run(id, nome, expiraEm, new Date().toISOString())
+}
+
+export function addItemLista(db: Database.Database, listaId: string, itemId: string): void {
+  db.prepare(
+    'INSERT OR IGNORE INTO lista_itens (lista_id, item_id, adicionado_em) VALUES (?, ?, ?)',
+  ).run(listaId, itemId, new Date().toISOString())
+}
+
+export function apagarLista(db: Database.Database, id: string): void {
+  db.transaction(() => {
+    db.prepare('DELETE FROM lista_itens WHERE lista_id = ?').run(id)
+    db.prepare('DELETE FROM listas WHERE id = ?').run(id)
+  })()
+}
+
+// ─── Buscas salvas ───────────────────────────────────────────────
+
+export interface Busca {
+  id: string
+  termo: string
+  marketplace: string
+  ativa: boolean
+}
+
+export function buscas(db: Database.Database): Busca[] {
+  const linhas = db
+    .prepare('SELECT id, termo, marketplace, ativa FROM buscas ORDER BY termo')
+    .all() as any[]
+  return linhas.map((l) => ({ ...l, ativa: Boolean(l.ativa) }))
+}
+
+export function salvarBusca(db: Database.Database, b: Busca): void {
+  db.prepare(
+    `INSERT INTO buscas (id, termo, marketplace, ativa, criado_em) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET termo = excluded.termo,
+       marketplace = excluded.marketplace, ativa = excluded.ativa`,
+  ).run(b.id, b.termo, b.marketplace, b.ativa ? 1 : 0, new Date().toISOString())
+}
+
+export function apagarBusca(db: Database.Database, id: string): void {
+  db.prepare('DELETE FROM buscas WHERE id = ?').run(id)
 }

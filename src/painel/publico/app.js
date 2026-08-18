@@ -309,41 +309,213 @@ async function telaEventos() {
 
 async function telaInicio() {
   const { passos, metricas } = await api('/resumo')
-  const faltando = passos.filter((p) => !p.feito)
+  const feitos = passos.filter((p) => p.feito).length
+  const hora = new Date().getHours()
+  const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite'
+
+  const onboarding =
+    feitos === passos.length
+      ? ''
+      : `<div class="onboarding">
+      <div class="onboarding-topo">
+        <h3>Configure em poucos minutos</h3>
+        <span class="contagem">${feitos}/${passos.length} concluídos</span>
+        <span class="restante">${passos.length - feitos} ${passos.length - feitos === 1 ? 'pendente' : 'pendentes'}</span>
+      </div>
+      <div class="trilho-progresso"><span style="width:${Math.round((feitos / passos.length) * 100)}%"></span></div>
+      ${passos
+        .map(
+          (p) => `<div class="passo ${p.feito ? 'feito' : 'pendente'}">
+            <span class="marca">${p.feito ? '✓' : ''}</span>
+            <span class="texto">
+              <span class="titulo-passo">${esc(p.titulo)}</span><br>
+              <span class="detalhe-passo">${esc(p.detalhe)}</span>
+            </span>
+            ${!p.feito && p.acao ? `<button class="botao" data-acao-motor="${esc(p.acao)}">Fazer agora</button>` : ''}
+          </div>`,
+        )
+        .join('')}
+    </div>`
 
   return `
-  <h2 class="titulo-secao">Início</h2>
-  <p class="sub">${faltando.length === 0 ? 'Tudo configurado. O motor roda a cada 15 minutos.' : `${faltando.length} ${faltando.length === 1 ? 'passo pendente' : 'passos pendentes'} para o motor funcionar sozinho.`}</p>
-
-  <div class="passos">
-    ${passos
-      .map(
-        (p) => `<div class="passo ${p.feito ? 'feito' : 'pendente'}">
-          <span class="marca">${p.feito ? '✓' : ''}</span>
-          <span class="texto">
-            <span class="titulo-passo">${esc(p.titulo)}</span><br>
-            <span class="detalhe-passo">${esc(p.detalhe)}</span>
-          </span>
-          ${!p.feito && p.acao ? `<button class="botao" data-acao-motor="${esc(p.acao)}">Fazer agora</button>` : ''}
-        </div>`,
-      )
-      .join('')}
+  <div class="cabecalho-tela">
+    <h2>${saudacao}, Guilherme</h2>
+    <p>Visão geral da sua operação de afiliado.</p>
   </div>
 
+  ${onboarding}
+
   <div class="metricas">
-    ${[
-      ['ofertas na base', metricas.ofertas, ''],
-      ['publicadas hoje', metricas.publicadasHoje, ''],
-      ['publicadas no total', metricas.publicadasTotal, ''],
-      ['programadas', metricas.agendamentosPendentes, ''],
-      ['erros em 24h', metricas.erros24h, metricas.erros24h > 0 ? 'alerta' : ''],
-    ]
-      .map(
-        ([rotulo, valor, classe]) =>
-          `<div class="metrica ${classe}"><div class="rotulo">${rotulo}</div><div class="valor">${valor}</div></div>`,
-      )
-      .join('')}
+    <div class="metrica destaque"><div class="rotulo">ofertas na base</div><div class="valor">${metricas.ofertas}</div></div>
+    <div class="metrica"><div class="rotulo">publicadas hoje</div><div class="valor">${metricas.publicadasHoje}</div></div>
+    <div class="metrica"><div class="rotulo">publicadas no total</div><div class="valor">${metricas.publicadasTotal}</div></div>
+    <div class="metrica"><div class="rotulo">programadas</div><div class="valor">${metricas.agendamentosPendentes}</div></div>
+    <div class="metrica ${metricas.erros24h > 0 ? 'alerta' : ''}"><div class="rotulo">erros em 24h</div><div class="valor">${metricas.erros24h}</div></div>
   </div>`
+}
+
+async function telaConfig() {
+  const i = await api('/integracoes')
+  const linha = (m) => `<tr>
+    <td><b>${esc(m.nome)}</b><br><span style="color:var(--tenue);font-size:12px">${m.tipo === 'fonte' ? 'busca de ofertas' : 'geração de link'}</span></td>
+    <td>${m.ok ? '<span class="selo selo-ok">conectado</span>' : '<span class="selo selo-nao">falta configurar</span>'}</td>
+    <td style="color:var(--fraco);font-size:12px">${esc(m.motivo ?? '')}</td>
+  </tr>`
+
+  return `
+  <div class="cabecalho-tela">
+    <h2>Configurações</h2>
+    <p>Suas conexões e integrações. As credenciais ficam no arquivo <code>.env</code>, nunca no navegador.</p>
+  </div>
+
+  <div class="aviso info">A Shopee tem API oficial de afiliado — geração de link sem navegador e sem captcha.
+  O Mercado Livre não tem, e por isso depende de sessão de navegador. Peça o acesso em
+  <b>affiliate.shopee.com.br</b>, aba Open API: a análise leva de 5 a 15 dias.</div>
+
+  <table class="tabela" style="margin-bottom:22px">
+    <thead><tr><th>Integração</th><th>Situação</th><th>Observação</th></tr></thead>
+    <tbody>${i.marketplaces.map(linha).join('')}</tbody>
+  </table>
+
+  <table class="tabela">
+    <thead><tr><th>Envio</th><th>Situação</th><th>Observação</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>Telegram</b><br><span style="color:var(--tenue);font-size:12px">bot de publicação</span></td>
+        <td>${i.telegram.configurado ? '<span class="selo selo-ok">conectado</span>' : '<span class="selo selo-nao">falta configurar</span>'}</td>
+        <td style="color:var(--fraco);font-size:12px">${i.telegram.configurado ? esc(i.telegram.canal ?? 'sem canal padrão') : 'defina TELEGRAM_BOT_TOKEN no .env'}</td>
+      </tr>
+      <tr>
+        <td><b>Etiqueta de rastreamento</b><br><span style="color:var(--tenue);font-size:12px">atribuição no painel do ML</span></td>
+        <td>${i.etiqueta ? '<span class="selo selo-ok">definida</span>' : '<span class="selo selo-nao">sem etiqueta</span>'}</td>
+        <td style="color:var(--fraco);font-size:12px">${esc(i.etiqueta ?? 'defina ETIQUETA no .env')}</td>
+      </tr>
+    </tbody>
+  </table>`
+}
+
+async function telaCupons() {
+  const { cupons } = await api('/cupons')
+
+  const form = `
+  <div class="cartao-form">
+    <h3 style="margin-bottom:4px">Novo cupom</h3>
+    <p class="ajuda" style="margin-bottom:14px">As regras são conferidas produto a produto. Quando nenhuma bate, a mensagem sai sem cupom — nunca com código inválido.</p>
+    <div class="grade-form">
+      <label>Código <input id="c-codigo" placeholder="BL26R20"></label>
+      <label>Desconto % <input id="c-pct" type="number" placeholder="20" min="0" max="100"></label>
+      <label>ou valor fixo (R$) <input id="c-fixo" type="number" placeholder="25" min="0"></label>
+      <label>Compra mínima (R$) <input id="c-min" type="number" placeholder="sem mínimo" min="0"></label>
+      <label>Teto do desconto (R$) <input id="c-teto" type="number" placeholder="sem teto" min="0"></label>
+      <label>Vale para (palavras) <input id="c-cat" placeholder="fone, cafeteira"></label>
+      <label>Válido até <input id="c-ate" type="date"></label>
+    </div>
+    <div class="acoes-form"><button class="botao" id="salvar-cupom">Adicionar cupom</button></div>
+  </div>`
+
+  const lista =
+    cupons.length === 0
+      ? '<p class="vazio">Nenhum cupom cadastrado.</p>'
+      : `<table class="tabela">
+      <thead><tr><th>Código</th><th>Desconto</th><th>Regras</th><th>Validade</th><th></th></tr></thead>
+      <tbody>${cupons
+        .map((c) => {
+          const regras = [
+            c.compraMinima ? `mín. ${brl(c.compraMinima)}` : '',
+            c.tetoDesconto ? `teto ${brl(c.tetoDesconto)}` : '',
+            (c.categorias ?? []).length ? `vale em: ${c.categorias.join(', ')}` : 'vale em tudo',
+          ].filter(Boolean)
+          return `<tr>
+            <td><b>${esc(c.codigo)}</b></td>
+            <td>${c.percentual ? c.percentual + '%' : brl(c.valorFixo ?? 0)}</td>
+            <td style="font-size:12px;color:var(--fraco)">${regras.join(' · ')}</td>
+            <td style="font-size:12px">${c.validoAte ? dataHora(c.validoAte) : 'sem prazo'}</td>
+            <td class="num">
+              <button class="botao-mini" data-previa-cupom="${esc(c.codigo)}">prévia</button>
+              <button class="botao-perigo" data-apagar-cupom="${esc(c.codigo)}">remover</button>
+            </td>
+          </tr>`
+        })
+        .join('')}</tbody></table>
+      <div id="previa-cupom"></div>`
+
+  return `<div class="cabecalho-tela"><h2>Cupons</h2>
+    <p>Cadastre o cupom uma vez. A cada envio o sistema confere as regras dele e, quando o produto se encaixa, calcula o preço final e manda o código junto.</p></div>` + form + lista
+}
+
+async function telaListas() {
+  const { listas } = await api('/listas')
+
+  const form = `
+  <div class="cartao-form">
+    <h3 style="margin-bottom:4px">Nova lista</h3>
+    <p class="ajuda" style="margin-bottom:14px">Listas expiram sozinhas: oferta velha em lista antiga é a forma mais fácil de publicar preço errado.</p>
+    <div class="grade-form">
+      <label>Identificador <input id="l-id" placeholder="black-friday"></label>
+      <label>Nome <input id="l-nome" placeholder="Black Friday"></label>
+      <label>Expira em (horas) <input id="l-horas" type="number" value="48" min="1"></label>
+    </div>
+    <div class="acoes-form"><button class="botao" id="salvar-lista">Criar lista</button></div>
+  </div>`
+
+  const lista =
+    listas.length === 0
+      ? '<p class="vazio">Nenhuma lista. Crie uma para juntar ofertas escolhidas a dedo.</p>'
+      : `<table class="tabela">
+      <thead><tr><th>Lista</th><th class="num">Itens</th><th>Expira</th><th></th></tr></thead>
+      <tbody>${listas
+        .map(
+          (l) => `<tr>
+          <td><b>${esc(l.nome)}</b><br><span style="color:var(--tenue);font-size:12px">${esc(l.id)}</span></td>
+          <td class="num">${l.itens.length}</td>
+          <td>${l.expiraEm ? (l.expirada ? '<span class="selo selo-erro">expirada</span>' : dataHora(l.expiraEm)) : 'sem prazo'}</td>
+          <td class="num"><button class="botao-perigo" data-apagar-lista="${esc(l.id)}">remover</button></td>
+        </tr>`,
+        )
+        .join('')}</tbody></table>`
+
+  return `<div class="cabecalho-tela"><h2>Listas</h2>
+    <p>Coleções curadas à mão, com expiração automática.</p></div>` + form + lista
+}
+
+async function telaBuscas() {
+  const { buscas } = await api('/buscas')
+
+  const form = `
+  <div class="cartao-form">
+    <h3 style="margin-bottom:4px">Nova busca</h3>
+    <p class="ajuda" style="margin-bottom:14px">Buscas salvas alimentam a base a cada coleta. Na Shopee a busca por termo é oficial; no Mercado Livre o feed do hub não aceita termo, então a palavra-chave filtra o que já foi coletado.</p>
+    <div class="grade-form">
+      <label>Identificador <input id="b-id" placeholder="fones"></label>
+      <label>Termo <input id="b-termo" placeholder="fone bluetooth"></label>
+      <label>Marketplace
+        <select id="b-marketplace">
+          <option value="shopee">Shopee</option>
+          <option value="ml">Mercado Livre</option>
+        </select>
+      </label>
+    </div>
+    <div class="acoes-form"><button class="botao" id="salvar-busca">Criar busca</button></div>
+  </div>`
+
+  const lista =
+    buscas.length === 0
+      ? '<p class="vazio">Nenhuma busca salva.</p>'
+      : `<table class="tabela">
+      <thead><tr><th>Busca</th><th>Termo</th><th>Marketplace</th><th></th></tr></thead>
+      <tbody>${buscas
+        .map(
+          (b) => `<tr>
+          <td><b>${esc(b.id)}</b></td>
+          <td>${esc(b.termo)}</td>
+          <td>${b.marketplace === 'shopee' ? 'Shopee' : 'Mercado Livre'}</td>
+          <td class="num"><button class="botao-perigo" data-apagar-busca="${esc(b.id)}">remover</button></td>
+        </tr>`,
+        )
+        .join('')}</tbody></table>`
+
+  return `<div class="cabecalho-tela"><h2>Palavras-chave</h2>
+    <p>Buscas que capturam produtos automaticamente a cada coleta.</p></div>` + form + lista
 }
 
 async function telaAutomacoes() {
@@ -422,6 +594,10 @@ async function telaAutomacoes() {
 
 const TELAS = {
   inicio: telaInicio,
+  config: telaConfig,
+  cupons: telaCupons,
+  listas: telaListas,
+  buscas: telaBuscas,
   fila: telaFila,
   automacoes: telaAutomacoes,
   agenda: telaAgenda,
@@ -445,6 +621,7 @@ document.querySelectorAll('.item').forEach((b) =>
     document.querySelectorAll('.item').forEach((x) => x.classList.remove('ativa'))
     b.classList.add('ativa')
     tela = b.dataset.tela
+    document.getElementById('trilha-atual').textContent = b.textContent.trim().replace(/\d+$/, '')
     render()
   }),
 )
@@ -711,5 +888,101 @@ conteudo.addEventListener('click', async (ev) => {
     } catch (e) {
       alert(`Não deu para criar: ${e.message}`)
     }
+  }
+})
+
+// ─── Cupons, listas e buscas: criação e remoção ──────────────────
+
+conteudo.addEventListener('click', async (ev) => {
+  const alvo = ev.target
+  if (!(alvo instanceof HTMLElement)) return
+
+  const num = (id) => {
+    const v = document.getElementById(id)?.value.trim()
+    return !v ? undefined : Number(v)
+  }
+  const txt = (id) => document.getElementById(id)?.value.trim() ?? ''
+  const listaDe = (id) => txt(id).split(',').map((s) => s.trim()).filter(Boolean)
+
+  if (alvo.id === 'salvar-cupom') {
+    const corpo = {
+      codigo: txt('c-codigo'),
+      percentual: num('c-pct'),
+      valorFixo: num('c-fixo'),
+      compraMinima: num('c-min'),
+      tetoDesconto: num('c-teto'),
+      categorias: listaDe('c-cat'),
+      validoAte: txt('c-ate') ? new Date(txt('c-ate') + 'T23:59:59').toISOString() : undefined,
+      ativo: true,
+    }
+    try {
+      await api('/cupons', { method: 'POST', body: JSON.stringify(corpo) })
+      render()
+    } catch (e) {
+      alert(`Não deu para salvar: ${e.message}`)
+    }
+    return
+  }
+
+  if (alvo.dataset.previaCupom) {
+    const p = await api(`/cupons/${encodeURIComponent(alvo.dataset.previaCupom)}/previa`)
+    const caixa = document.getElementById('previa-cupom')
+    caixa.innerHTML = `<div class="aviso info" style="margin-top:14px">
+      Este cupom alcança <b>${p.alcanca}</b> das ${p.total} ofertas da base.
+      ${
+        p.exemplos.length
+          ? '<br>' +
+            p.exemplos
+              .map((e) => `${esc(e.titulo.slice(0, 46))}: ${brl(e.preco)} → <b>${brl(e.precoFinal)}</b> (economia ${brl(e.economia)})`)
+              .join('<br>')
+          : ''
+      }</div>`
+    return
+  }
+
+  if (alvo.dataset.apagarCupom) {
+    await api(`/cupons/${encodeURIComponent(alvo.dataset.apagarCupom)}`, { method: 'DELETE' })
+    return render()
+  }
+
+  if (alvo.id === 'salvar-lista') {
+    try {
+      await api('/listas', {
+        method: 'POST',
+        body: JSON.stringify({ id: txt('l-id'), nome: txt('l-nome'), horasValidade: num('l-horas') }),
+      })
+      render()
+    } catch (e) {
+      alert(`Não deu para criar: ${e.message}`)
+    }
+    return
+  }
+
+  if (alvo.dataset.apagarLista) {
+    await api(`/listas/${encodeURIComponent(alvo.dataset.apagarLista)}`, { method: 'DELETE' })
+    return render()
+  }
+
+  if (alvo.id === 'salvar-busca') {
+    try {
+      await api('/buscas', {
+        method: 'POST',
+        body: JSON.stringify({
+          id: txt('b-id'),
+          termo: txt('b-termo'),
+          marketplace: document.getElementById('b-marketplace').value,
+          ativa: true,
+        }),
+      })
+      render()
+    } catch (e) {
+      alert(`Não deu para criar: ${e.message}`)
+    }
+    return
+  }
+
+  if (alvo.dataset.apagarBusca) {
+    await api(`/buscas/${encodeURIComponent(alvo.dataset.apagarBusca)}`, { method: 'DELETE' })
+    return render()
   }
 })

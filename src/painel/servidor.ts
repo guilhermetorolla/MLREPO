@@ -27,8 +27,21 @@ import {
   automacoes,
   estatisticaAutomacao,
   salvarAutomacao,
+  addItemLista,
+  apagarBusca,
+  apagarCupom,
+  apagarLista,
+  buscas,
+  cupons,
+  listas,
+  salvarBusca,
+  salvarCupom,
+  salvarLista,
   type DestinoLinha,
 } from '../db.ts'
+import { melhorCupom, type Cupom } from '../motor/cupom.ts'
+import { fontes, provedoresDeLink } from '../fontes/registry.ts'
+import { MARKETPLACES } from '../tipos.ts'
 import { diaLocal } from '../motor/agenda.ts'
 import { filtrarConteudo, motivoAutomacaoEsperar, type Automacao } from '../motor/automacao.ts'
 import { parsearFeed } from '../parser.ts'
@@ -202,6 +215,123 @@ app.post('/api/agendamentos', async (req, reply) => {
 app.delete('/api/agendamentos/:id', async (req) => {
   marcarAgendamento(db, Number((req.params as { id: string }).id), 'cancelado')
   return { ok: true }
+})
+
+// ─── Cupons ──────────────────────────────────────────────────────
+
+app.get('/api/cupons', async () => ({ cupons: cupons(db), marketplaces: MARKETPLACES }))
+
+app.post('/api/cupons', async (req, reply) => {
+  const c = (req.body ?? {}) as Cupom & { marketplace?: string }
+  if (!c.codigo) return reply.code(400).send({ erro: 'código é obrigatório' })
+  if (c.percentual === undefined && c.valorFixo === undefined) {
+    return reply.code(400).send({ erro: 'informe percentual OU valor fixo' })
+  }
+  salvarCupom(db, c)
+  return { ok: true }
+})
+
+app.delete('/api/cupons/:codigo', async (req) => {
+  apagarCupom(db, (req.params as { codigo: string }).codigo)
+  return { ok: true }
+})
+
+/** Prévia: quantas ofertas da base este cupom alcança, e o melhor preço. */
+app.get('/api/cupons/:codigo/previa', async (req, reply) => {
+  const codigo = (req.params as { codigo: string }).codigo
+  const cupom = cupons(db).find((c) => c.codigo === codigo)
+  if (!cupom) return reply.code(404).send({ erro: 'cupom não encontrado' })
+
+  const agora = new Date()
+  const ofertas = ofertasSalvas(db)
+  const alcanca = ofertas
+    .map((o) => ({ o, r: melhorCupom([cupom], o, agora) }))
+    .filter((x) => x.r?.aplica)
+
+  return {
+    total: ofertas.length,
+    alcanca: alcanca.length,
+    exemplos: alcanca.slice(0, 5).map((x) => ({
+      titulo: x.o.titulo,
+      preco: x.o.precoAtual,
+      precoFinal: x.r!.precoFinal,
+      economia: x.r!.desconto,
+    })),
+  }
+})
+
+// ─── Listas ──────────────────────────────────────────────────────
+
+app.get('/api/listas', async () => ({ listas: listas(db) }))
+
+app.post('/api/listas', async (req, reply) => {
+  const { id, nome, horasValidade } = (req.body ?? {}) as Record<string, any>
+  if (!id || !nome) return reply.code(400).send({ erro: 'id e nome são obrigatórios' })
+  salvarLista(db, id, nome, horasValidade ? Number(horasValidade) : undefined)
+  return { ok: true }
+})
+
+app.post('/api/listas/:id/itens', async (req, reply) => {
+  const { itemId } = (req.body ?? {}) as { itemId?: string }
+  if (!itemId) return reply.code(400).send({ erro: 'itemId é obrigatório' })
+  addItemLista(db, (req.params as { id: string }).id, itemId)
+  return { ok: true }
+})
+
+app.delete('/api/listas/:id', async (req) => {
+  apagarLista(db, (req.params as { id: string }).id)
+  return { ok: true }
+})
+
+// ─── Buscas salvas ───────────────────────────────────────────────
+
+app.get('/api/buscas', async () => ({ buscas: buscas(db) }))
+
+app.post('/api/buscas', async (req, reply) => {
+  const b = (req.body ?? {}) as Record<string, any>
+  if (!b.id || !b.termo) return reply.code(400).send({ erro: 'id e termo são obrigatórios' })
+  salvarBusca(db, {
+    id: b.id,
+    termo: b.termo,
+    marketplace: b.marketplace ?? 'shopee',
+    ativa: b.ativa ?? true,
+  })
+  return { ok: true }
+})
+
+app.delete('/api/buscas/:id', async (req) => {
+  apagarBusca(db, (req.params as { id: string }).id)
+  return { ok: true }
+})
+
+// ─── Integrações (tela de configurações) ─────────────────────────
+
+app.get('/api/integracoes', async () => {
+  const fontesEstado = await Promise.all(
+    fontes().map(async (f) => ({
+      marketplace: f.marketplace,
+      nome: f.nome,
+      tipo: 'fonte',
+      ...(await f.disponivel()),
+    })),
+  )
+  const linksEstado = await Promise.all(
+    provedoresDeLink().map(async (p) => ({
+      marketplace: p.marketplace,
+      nome: p.nome,
+      tipo: 'link',
+      ...(await p.disponivel()),
+    })),
+  )
+
+  return {
+    marketplaces: [...fontesEstado, ...linksEstado],
+    telegram: {
+      configurado: Boolean(process.env.TELEGRAM_BOT_TOKEN),
+      canal: process.env.TELEGRAM_CANAL ?? null,
+    },
+    etiqueta: ETIQUETA || null,
+  }
 })
 
 // ─── Automações ──────────────────────────────────────────────────

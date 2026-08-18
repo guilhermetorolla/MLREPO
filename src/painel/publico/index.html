@@ -3,32 +3,57 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Painel · Ofertas ML</title>
+<title>Painel · Ofertas</title>
 <link rel="stylesheet" href="/estilo.css">
 </head>
 <body>
 
 <div class="app">
   <aside class="lateral">
-    <p class="logo">Ofertas<span>ML</span></p>
+    <div class="logo">
+      <span class="logo-marca">O</span>
+      <span class="logo-texto">Ofertas<span>PAINEL</span></span>
+    </div>
+
+    <p class="grupo-nav">Operação</p>
     <nav>
       <button class="item ativa" data-tela="inicio">Início</button>
-      <button class="item" data-tela="fila">Fila de ofertas</button>
+      <button class="item" data-tela="fila">Ofertas</button>
       <button class="item" data-tela="automacoes">Automações</button>
-      <button class="item" data-tela="destinos">Destinos</button>
       <button class="item" data-tela="agenda">Programados</button>
+    </nav>
+
+    <p class="grupo-nav">Conteúdo</p>
+    <nav>
+      <button class="item" data-tela="buscas">Palavras-chave</button>
+      <button class="item" data-tela="listas">Listas</button>
+      <button class="item" data-tela="cupons">Cupons</button>
+    </nav>
+
+    <p class="grupo-nav">Envio</p>
+    <nav>
+      <button class="item" data-tela="destinos">Grupos e canais</button>
       <button class="item" data-tela="motor">Motor</button>
       <button class="item" data-tela="eventos">Eventos <span id="badge-erros" class="badge oculto"></span></button>
     </nav>
-    <div class="rodape-lateral">
-      <span id="relogio"></span>
-    </div>
+
+    <p class="grupo-nav">Conta</p>
+    <nav>
+      <button class="item" data-tela="config">Configurações</button>
+    </nav>
+
+    <div class="rodape-lateral"><span id="relogio"></span></div>
   </aside>
 
   <div class="area">
+    <header class="topbar">
+      <span class="trilha">Painel / <b id="trilha-atual">Início</b></span>
+      <span class="status" id="status-motor"><span class="ponto"></span> motor ativo</span>
+    </header>
+
     <section class="acoes-barra">
       <div class="acoes-interna">
-        <button class="botao" data-acao-motor="coletar">Buscar ofertas no ML</button>
+        <button class="botao" data-acao-motor="coletar">Buscar ofertas</button>
         <button class="botao-fraco" data-acao-motor="links">Gerar links</button>
         <button class="botao-fraco" data-acao-motor="simular">Simular rodada</button>
         <button class="botao-fraco" data-acao-motor="publicar">Publicar agora</button>
@@ -57,7 +82,7 @@
     <p class="ajuda" id="agendar-titulo"></p>
     <label>Destino <select id="agendar-destino"></select></label>
     <label>Quando <input type="datetime-local" id="agendar-quando"></label>
-    <p class="ajuda">Post programado ignora o filtro, mas respeita o intervalo mínimo do destino.</p>
+    <p class="ajuda">Post programado ignora o filtro, mas respeita o intervalo do destino.</p>
     <div class="acoes-dialogo">
       <button value="cancelar" class="botao-fraco">Cancelar</button>
       <button value="ok" class="botao">Programar</button>
