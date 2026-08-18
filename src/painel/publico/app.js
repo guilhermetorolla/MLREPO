@@ -6,7 +6,7 @@ const conteudo = document.getElementById('conteudo')
 const dlgToken = document.getElementById('dlg-token')
 const dlgAgendar = document.getElementById('dlg-agendar')
 
-let tela = 'fila'
+let tela = 'inicio'
 let destinosCache = []
 let filtro = { busca: '', so: 'todas' }
 let ofertasCache = []
@@ -307,7 +307,128 @@ async function telaEventos() {
     .join('')}</div>`
 }
 
-const TELAS = { fila: telaFila, agenda: telaAgenda, destinos: telaDestinos, motor: telaMotor, eventos: telaEventos }
+async function telaInicio() {
+  const { passos, metricas } = await api('/resumo')
+  const faltando = passos.filter((p) => !p.feito)
+
+  return `
+  <h2 class="titulo-secao">Início</h2>
+  <p class="sub">${faltando.length === 0 ? 'Tudo configurado. O motor roda a cada 15 minutos.' : `${faltando.length} ${faltando.length === 1 ? 'passo pendente' : 'passos pendentes'} para o motor funcionar sozinho.`}</p>
+
+  <div class="passos">
+    ${passos
+      .map(
+        (p) => `<div class="passo ${p.feito ? 'feito' : 'pendente'}">
+          <span class="marca">${p.feito ? '✓' : ''}</span>
+          <span class="texto">
+            <span class="titulo-passo">${esc(p.titulo)}</span><br>
+            <span class="detalhe-passo">${esc(p.detalhe)}</span>
+          </span>
+          ${!p.feito && p.acao ? `<button class="botao" data-acao-motor="${esc(p.acao)}">Fazer agora</button>` : ''}
+        </div>`,
+      )
+      .join('')}
+  </div>
+
+  <div class="metricas">
+    ${[
+      ['ofertas na base', metricas.ofertas, ''],
+      ['publicadas hoje', metricas.publicadasHoje, ''],
+      ['publicadas no total', metricas.publicadasTotal, ''],
+      ['programadas', metricas.agendamentosPendentes, ''],
+      ['erros em 24h', metricas.erros24h, metricas.erros24h > 0 ? 'alerta' : ''],
+    ]
+      .map(
+        ([rotulo, valor, classe]) =>
+          `<div class="metrica ${classe}"><div class="rotulo">${rotulo}</div><div class="valor">${valor}</div></div>`,
+      )
+      .join('')}
+  </div>`
+}
+
+async function telaAutomacoes() {
+  const { automacoes } = await api('/automacoes')
+  destinosCache = (await api('/destinos')).destinos
+
+  const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
+
+  const form = `
+  <div class="cartao-form">
+    <h2 class="titulo-secao">Nova automação</h2>
+    <p class="sub">Uma automação decide <b>quando</b> enviar e <b>o que</b> enviar. O destino continua com o teto próprio dele.</p>
+    <div class="grade-form">
+      <label>Identificador <input id="a-id" placeholder="eletronicos-manha"></label>
+      <label>Nome <input id="a-nome" placeholder="Eletrônicos de manhã"></label>
+      <label>Janelas <input id="a-janelas" placeholder="09:00-12:00, 18:00-21:00"></label>
+      <label>Intervalo (min) <input id="a-intervalo" type="number" value="60" min="0"></label>
+      <label>Limite diário <input id="a-limite" type="number" value="6" min="1"></label>
+      <label>Ganho mínimo (R$) <input id="a-ganho" type="number" value="20" min="0" step="1"></label>
+      <label>Nota mínima <input id="a-nota" type="number" value="4" min="0" max="5" step="0.1"></label>
+      <label>Vendas mínimas <input id="a-vendas" type="number" value="100" min="0"></label>
+      <label>Preço de <input id="a-precomin" type="number" placeholder="sem mínimo" min="0"></label>
+      <label>Preço até <input id="a-precomax" type="number" placeholder="sem máximo" min="0"></label>
+      <label>Só com estas palavras <input id="a-incluir" placeholder="fone, cafeteira"></label>
+      <label>Nunca com estas <input id="a-excluir" placeholder="capinha, adesivo"></label>
+      <label>Dias da semana
+        <span style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">
+          ${DIAS.map((d, i) => `<button type="button" class="chip" data-dia="${i}">${d}</button>`).join('')}
+        </span>
+      </label>
+      <label>Destinos
+        <span style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">
+          ${destinosCache.map((d) => `<button type="button" class="chip" data-dest="${esc(d.id)}">${esc(d.nome)}</button>`).join('') || '<span style="color:var(--fraco);font-size:12px">cadastre um destino primeiro</span>'}
+        </span>
+      </label>
+      <label>Só comissão extra
+        <span style="display:block;margin-top:6px"><button type="button" class="chip" data-extra="1">somente EXTRA</button></span>
+      </label>
+    </div>
+    <div class="acoes-dialogo"><button class="botao" id="salvar-automacao">Criar automação</button></div>
+  </div>`
+
+  const lista =
+    automacoes.length === 0
+      ? '<p class="vazio">Nenhuma automação. Crie uma acima para o motor começar a publicar sozinho.</p>'
+      : `<table class="tabela">
+        <thead><tr><th>Automação</th><th>Quando</th><th>Filtro</th><th class="num">Hoje</th><th>Situação</th><th></th></tr></thead>
+        <tbody>${automacoes
+          .map((a) => {
+            const f = a.filtro ?? {}
+            const filtros = [
+              f.ganhoMinimo ? `ganho ≥ ${brl(f.ganhoMinimo)}` : '',
+              f.notaMinima ? `nota ≥ ${f.notaMinima}` : '',
+              f.vendasMinimas ? `${f.vendasMinimas}+ vendas` : '',
+              f.precoMinimo || f.precoMaximo ? `${brl(f.precoMinimo ?? 0)}–${f.precoMaximo ? brl(f.precoMaximo) : '∞'}` : '',
+              f.somenteComissaoExtra ? 'só EXTRA' : '',
+              (f.palavrasIncluir ?? []).length ? `com: ${f.palavrasIncluir.join(', ')}` : '',
+              (f.palavrasExcluir ?? []).length ? `sem: ${f.palavrasExcluir.join(', ')}` : '',
+            ].filter(Boolean)
+            return `<tr>
+              <td><b>${esc(a.nome)}</b><br><span style="color:var(--tenue);font-size:12px">${a.destinos.length} destino(s) · ${a.candidatas} ofertas servem</span></td>
+              <td>${a.janelas.join('<br>') || 'dia todo'}<br><span style="color:var(--tenue);font-size:12px">${a.diasSemana.length ? a.diasSemana.map((d) => DIAS[d]).join(' ') : 'todos os dias'} · a cada ${a.intervaloMinutos} min</span></td>
+              <td style="font-size:12px;color:var(--fraco)">${filtros.join('<br>') || 'sem filtro'}</td>
+              <td class="num">${a.enviadosHoje}/${a.limiteDiario}</td>
+              <td>${a.situacao ? `<span class="selo selo-nao">${esc(a.situacao)}</span>` : '<span class="selo selo-ok">pronta para publicar</span>'}</td>
+              <td class="num">
+                <button class="botao-fraco" data-pausar="${esc(a.id)}">${a.ativa ? 'pausar' : 'ativar'}</button>
+                <button class="botao-perigo" data-apagar-auto="${esc(a.id)}">remover</button>
+              </td>
+            </tr>`
+          })
+          .join('')}</tbody></table>`
+
+  return form + lista
+}
+
+const TELAS = {
+  inicio: telaInicio,
+  fila: telaFila,
+  automacoes: telaAutomacoes,
+  agenda: telaAgenda,
+  destinos: telaDestinos,
+  motor: telaMotor,
+  eventos: telaEventos,
+}
 
 async function render() {
   if (!token()) return pedirToken()
@@ -319,9 +440,9 @@ async function render() {
   }
 }
 
-document.querySelectorAll('.aba').forEach((b) =>
+document.querySelectorAll('.item').forEach((b) =>
   b.addEventListener('click', () => {
-    document.querySelectorAll('.aba').forEach((x) => x.classList.remove('ativa'))
+    document.querySelectorAll('.item').forEach((x) => x.classList.remove('ativa'))
     b.classList.add('ativa')
     tela = b.dataset.tela
     render()
@@ -401,7 +522,7 @@ function abrirAgendar(itemId, titulo) {
         }),
       })
       tela = 'agenda'
-      document.querySelectorAll('.aba').forEach((x) => x.classList.toggle('ativa', x.dataset.tela === 'agenda'))
+      document.querySelectorAll('.item').forEach((x) => x.classList.toggle('ativa', x.dataset.tela === 'agenda'))
       render()
     } catch (e) {
       alert(`Não deu para programar: ${e.message}`)
@@ -522,3 +643,73 @@ api('/acoes/estado')
   })
   .catch(() => {})
 atualizarBadge()
+
+// ─── Automações: seleção por chips e criação ─────────────────────
+
+conteudo.addEventListener('click', async (ev) => {
+  const alvo = ev.target
+  if (!(alvo instanceof HTMLElement)) return
+
+  // chips de dia, destino e "só extra" alternam sozinhos
+  if (alvo.dataset.dia !== undefined || alvo.dataset.dest !== undefined || alvo.dataset.extra !== undefined) {
+    alvo.classList.toggle('ativo')
+    return
+  }
+
+  if (alvo.dataset.pausar) {
+    const { automacoes } = await api('/automacoes')
+    const a = automacoes.find((x) => x.id === alvo.dataset.pausar)
+    if (a) {
+      await api('/automacoes', { method: 'POST', body: JSON.stringify({ ...a, ativa: !a.ativa }) })
+      render()
+    }
+    return
+  }
+
+  if (alvo.dataset.apagarAuto) {
+    if (!confirm('Remover esta automação?')) return
+    await api(`/automacoes/${encodeURIComponent(alvo.dataset.apagarAuto)}`, { method: 'DELETE' })
+    return render()
+  }
+
+  if (alvo.id === 'salvar-automacao') {
+    const num = (id) => {
+      const v = document.getElementById(id).value.trim()
+      return v === '' ? undefined : Number(v)
+    }
+    const lista = (id) =>
+      document.getElementById(id).value.split(',').map((s) => s.trim()).filter(Boolean)
+
+    const corpo = {
+      id: document.getElementById('a-id').value.trim(),
+      nome: document.getElementById('a-nome').value.trim(),
+      ativa: true,
+      janelas: lista('a-janelas'),
+      intervaloMinutos: num('a-intervalo') ?? 60,
+      limiteDiario: num('a-limite') ?? 6,
+      diasSemana: [...document.querySelectorAll('[data-dia].ativo')].map((b) => Number(b.dataset.dia)),
+      destinos: [...document.querySelectorAll('[data-dest].ativo')].map((b) => b.dataset.dest),
+      filtro: {
+        ganhoMinimo: num('a-ganho') ?? 0,
+        notaMinima: num('a-nota'),
+        vendasMinimas: num('a-vendas'),
+        precoMinimo: num('a-precomin'),
+        precoMaximo: num('a-precomax'),
+        palavrasIncluir: lista('a-incluir'),
+        palavrasExcluir: lista('a-excluir'),
+        somenteComissaoExtra: Boolean(document.querySelector('[data-extra].ativo')),
+        exigirDescontoConfirmado: false,
+      },
+    }
+
+    if (!corpo.id || !corpo.nome) return alert('Identificador e nome são obrigatórios.')
+    if (corpo.destinos.length === 0) return alert('Escolha ao menos um destino.')
+
+    try {
+      await api('/automacoes', { method: 'POST', body: JSON.stringify(corpo) })
+      render()
+    } catch (e) {
+      alert(`Não deu para criar: ${e.message}`)
+    }
+  }
+})

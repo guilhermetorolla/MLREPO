@@ -22,8 +22,16 @@ import {
   eventos,
   ofertaPorId,
   registrarEvento,
+  salvarOfertas,
+  apagarAutomacao,
+  automacoes,
+  estatisticaAutomacao,
+  salvarAutomacao,
   type DestinoLinha,
 } from '../db.ts'
+import { diaLocal } from '../motor/agenda.ts'
+import { filtrarConteudo, motivoAutomacaoEsperar, type Automacao } from '../motor/automacao.ts'
+import { parsearFeed } from '../parser.ts'
 import { motivoParaEsperar, proximoHorario } from '../motor/agenda.ts'
 import * as tarefas from './tarefas.ts'
 import { aprovado } from '../motor/corte.ts'
@@ -64,6 +72,15 @@ await app.register(estatico, {
  * Sem isso o Fastify trata como assinatura legada (req, reply, done) e a rota
  * fica pendurada para sempre — sem erro, sem timeout, sem log.
  */
+// A importação vem da aba do Mercado Livre, que é outra origem. Liberamos
+// CORS apenas para o que o token já protege — o token continua obrigatório.
+app.addHook('onRequest', async (req: FastifyRequest, reply: FastifyReply) => {
+  reply.header('Access-Control-Allow-Origin', '*')
+  reply.header('Access-Control-Allow-Headers', 'content-type, x-painel-token')
+  reply.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
+  if (req.method === 'OPTIONS') return reply.code(204).send()
+})
+
 app.addHook('preHandler', async (req: FastifyRequest, reply: FastifyReply) => {
   if (!req.url.startsWith('/api/')) return
   const enviado = req.headers['x-painel-token']
@@ -186,6 +203,61 @@ app.delete('/api/agendamentos/:id', async (req) => {
   return { ok: true }
 })
 
+// ─── Automações ──────────────────────────────────────────────────
+
+app.get('/api/automacoes', async () => {
+  const agora = new Date()
+  const hoje = diaLocal(agora)
+  const fila = ranquear(ofertasSalvas(db), { historicos: historicos(db), agora })
+
+  return {
+    automacoes: automacoes(db).map((a) => {
+      const stat = estatisticaAutomacao(db, a.id, hoje)
+      return {
+        ...a,
+        situacao: motivoAutomacaoEsperar(a, agora, stat.ultima, stat.enviadosHoje) ?? null,
+        enviadosHoje: stat.enviadosHoje,
+        // Quantas ofertas o filtro desta automação aprova agora — é o número
+        // que diz se o filtro está apertado demais.
+        candidatas: filtrarConteudo(fila, a.filtro).length,
+      }
+    }),
+  }
+})
+
+app.post('/api/automacoes', async (req, reply) => {
+  const a = (req.body ?? {}) as Partial<Automacao>
+  if (!a.id || !a.nome) return reply.code(400).send({ erro: 'id e nome são obrigatórios' })
+  for (const j of a.janelas ?? []) {
+    if (!/^\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}$/.test(j)) {
+      return reply.code(400).send({ erro: `janela inválida "${j}" — use 09:00-21:00` })
+    }
+  }
+  const conhecidos = new Set(destinos(db).map((d) => d.id))
+  for (const d of a.destinos ?? []) {
+    if (!conhecidos.has(d)) return reply.code(400).send({ erro: `destino "${d}" não existe` })
+  }
+
+  salvarAutomacao(db, {
+    id: a.id,
+    nome: a.nome,
+    descricao: a.descricao,
+    ativa: a.ativa ?? true,
+    diasSemana: a.diasSemana ?? [],
+    janelas: a.janelas ?? [],
+    intervaloMinutos: Number(a.intervaloMinutos ?? 60),
+    limiteDiario: Number(a.limiteDiario ?? 10),
+    filtro: a.filtro ?? { ganhoMinimo: 10, exigirDescontoConfirmado: false },
+    destinos: a.destinos ?? [],
+  })
+  return { ok: true }
+})
+
+app.delete('/api/automacoes/:id', async (req) => {
+  apagarAutomacao(db, (req.params as { id: string }).id)
+  return { ok: true }
+})
+
 // ─── Motor ───────────────────────────────────────────────────────
 
 app.get('/api/motor/status', async () => {
@@ -227,6 +299,45 @@ app.get('/api/motor/status', async () => {
   }
 })
 
+/**
+ * Importa o feed cru do hub, vindo do navegador onde você já está logado.
+ * É o caminho que dispensa o Playwright: a aba do Mercado Livre lê o próprio
+ * feed com a sua sessão e despeja aqui.
+ */
+app.post('/api/ofertas/importar', async (req, reply) => {
+  const corpo = (req.body ?? {}) as { paginas?: unknown[] }
+  if (!Array.isArray(corpo.paginas) || corpo.paginas.length === 0) {
+    return reply.code(400).send({ erro: 'envie { paginas: [ <resposta do hub/search>, ... ] }' })
+  }
+
+  const vistos = new Set<string>()
+  const ofertas = []
+  const falhas: string[] = []
+
+  for (const [i, bruto] of corpo.paginas.entries()) {
+    try {
+      for (const o of parsearFeed(bruto)) {
+        if (vistos.has(o.itemId)) continue
+        vistos.add(o.itemId)
+        ofertas.push(o)
+      }
+    } catch (e) {
+      falhas.push(`página ${i}: ${(e as Error).message}`)
+    }
+  }
+
+  if (ofertas.length > 0) salvarOfertas(db, ofertas)
+  registrarEvento(
+    db,
+    falhas.length > 0 ? 'erro' : 'info',
+    'importacao',
+    `${ofertas.length} ofertas importadas do navegador`,
+    falhas.join(' · ') || undefined,
+  )
+
+  return { importadas: ofertas.length, paginas: corpo.paginas.length, falhas }
+})
+
 // ─── Ações (os botões que fazem coisa) ───────────────────────────
 
 const ACOES: Record<string, { rotulo: string; arquivo: string; args?: string[] }> = {
@@ -254,6 +365,68 @@ app.get('/api/eventos', async () => ({
   eventos: eventos(db),
   errosRecentes: contarErrosRecentes(db),
 }))
+
+/** Tela inicial: o que já está pronto e o que falta configurar. */
+app.get('/api/resumo', async () => {
+  const totalOfertas = (db.prepare('SELECT COUNT(*) AS c FROM ofertas').get() as { c: number }).c
+  const comLink = ETIQUETA
+    ? (db.prepare('SELECT COUNT(*) AS c FROM links WHERE etiqueta = ?').get(ETIQUETA) as { c: number }).c
+    : 0
+  const listaDestinos = destinos(db)
+  const listaAutomacoes = automacoes(db)
+  const pubs = publicacoesRecentes(db)
+  const hoje = diaLocal(new Date())
+
+  return {
+    passos: [
+      {
+        chave: 'ofertas',
+        titulo: 'Trazer ofertas do Mercado Livre',
+        feito: totalOfertas > 0,
+        detalhe: totalOfertas > 0 ? `${totalOfertas} ofertas na base` : 'nenhuma oferta ainda',
+        acao: 'coletar',
+      },
+      {
+        chave: 'links',
+        titulo: 'Gerar links de afiliado',
+        feito: comLink > 0,
+        detalhe: comLink > 0 ? `${comLink} links prontos` : 'nenhum link gerado',
+        acao: 'links',
+      },
+      {
+        chave: 'destinos',
+        titulo: 'Cadastrar um grupo ou canal',
+        feito: listaDestinos.length > 0,
+        detalhe: listaDestinos.length > 0 ? `${listaDestinos.length} destinos` : 'nenhum destino',
+      },
+      {
+        chave: 'automacao',
+        titulo: 'Criar uma automação',
+        feito: listaAutomacoes.length > 0,
+        detalhe: listaAutomacoes.some((a) => a.ativa)
+          ? `${listaAutomacoes.filter((a) => a.ativa).length} ativas`
+          : listaAutomacoes.length > 0
+            ? 'criada, mas pausada'
+            : 'nenhuma automação',
+      },
+      {
+        chave: 'telegram',
+        titulo: 'Conectar o Telegram',
+        feito: Boolean(process.env.TELEGRAM_BOT_TOKEN),
+        detalhe: process.env.TELEGRAM_BOT_TOKEN
+          ? 'bot configurado'
+          : 'falta TELEGRAM_BOT_TOKEN no .env',
+      },
+    ],
+    metricas: {
+      ofertas: totalOfertas,
+      publicadasHoje: pubs.filter((p) => diaLocal(new Date(p.publicadoEm)) === hoje).length,
+      publicadasTotal: pubs.length,
+      erros24h: contarErrosRecentes(db),
+      agendamentosPendentes: agendamentos(db, 'pendente').length,
+    },
+  }
+})
 
 // ─── Infra ───────────────────────────────────────────────────────
 

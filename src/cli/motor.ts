@@ -2,8 +2,10 @@ import { carregarEnv, exigir } from '../config.ts'
 import {
   abrir,
   agendamentosVencidos,
+  automacoes as automacoesDoBanco,
   decisoes,
   destinos as destinosDoBanco,
+  estatisticaAutomacao,
   historicos,
   linkSalvo,
   marcarAgendamento,
@@ -17,10 +19,9 @@ import {
 } from '../db.ts'
 import { LinkbuilderProvider } from '../link/linkbuilder.ts'
 import { MontadoProvider } from '../link/montado.ts'
-import { motivoParaEsperar } from '../motor/agenda.ts'
-import { aprovado, primeiraQuePassa } from '../motor/corte.ts'
-import { carregarDestinos } from '../motor/destinos.ts'
-import { CORTE_PADRAO, type Destino } from '../motor/tipos.ts'
+import { diaLocal, motivoParaEsperar } from '../motor/agenda.ts'
+import { filtrarConteudo, motivoAutomacaoEsperar } from '../motor/automacao.ts'
+import type { Destino } from '../motor/tipos.ts'
 import { ranquear } from '../score.ts'
 import { Telegram } from '../telegram.ts'
 import type { LinkProvider, OfertaPontuada } from '../tipos.ts'
@@ -58,14 +59,6 @@ const provider: LinkProvider =
   process.env.LINK_PROVIDER === 'montado'
     ? new MontadoProvider(exigir('MATT_TOOL'))
     : new LinkbuilderProvider({ headless: process.env.HEADLESS === '1' })
-
-const corte = (() => {
-  try {
-    return carregarDestinos().corte
-  } catch {
-    return CORTE_PADRAO
-  }
-})()
 
 const destinos = destinosDoBanco(db).map(paraDestino)
 const publicacoes = publicacoesRecentes(db)
@@ -127,34 +120,68 @@ for (const ag of agendamentosVencidos(db, agora)) {
   }
 }
 
-// ─── Fase 2: grade automática ────────────────────────────────────
+// ─── Fase 2: automações ──────────────────────────────────────────
 
-for (const destino of destinos) {
-  const espera = motivoParaEsperar(destino, publicacoes, agora)
+const automacoes = automacoesDoBanco(db)
+const hoje = diaLocal(agora)
+
+if (automacoes.length === 0) {
+  console.log('  nenhuma automação cadastrada — só os agendamentos manuais rodam')
+}
+
+for (const automacao of automacoes) {
+  const stat = estatisticaAutomacao(db, automacao.id, hoje)
+  const espera = motivoAutomacaoEsperar(automacao, agora, stat.ultima, stat.enviadosHoje)
   if (espera) {
-    console.log(`  ${destino.nome}: ${espera}`)
+    console.log(`  ${automacao.nome}: ${espera}`)
     continue
   }
 
-  const jaFoi = publicadosNoDestino(db, destino.id)
-  for (const chave of feitosNestaRodada) {
-    const [destinoId, itemId] = chave.split(':')
-    if (destinoId === destino.id && itemId) jaFoi.add(itemId)
-  }
-
-  // Aprovado por você tem preferência sobre o que só passou no corte.
-  const escolhida =
-    fila.find((i) => aprovadosPorVoce.has(i.oferta.itemId) && !jaFoi.has(i.oferta.itemId)) ??
-    primeiraQuePassa(fila, corte, jaFoi)
-
-  if (!escolhida) {
-    const topo = fila.find((i) => !jaFoi.has(i.oferta.itemId))
-    const porque = topo ? aprovado(topo, corte).motivo : 'todas já publicadas aqui'
-    console.log(`  ${destino.nome}: nenhuma passou no corte (${porque})`)
+  // O filtro da automação decide O QUE serve; o corte global fica de fora,
+  // porque cada automação carrega o seu.
+  const candidatas = filtrarConteudo(fila, automacao.filtro)
+  if (candidatas.length === 0) {
+    console.log(`  ${automacao.nome}: nenhuma oferta passou no filtro desta automação`)
     continue
   }
 
-  await publicar(destino, escolhida, '')
+  let enviouAlgo = false
+
+  for (const destinoId of automacao.destinos) {
+    const destino = destinos.find((d) => d.id === destinoId)
+    if (!destino) {
+      console.log(`  ${automacao.nome}: destino "${destinoId}" não existe mais`)
+      continue
+    }
+
+    // O destino tem teto próprio: protege o grupo mesmo que várias
+    // automações mirem nele ao mesmo tempo.
+    const bloqueio = motivoParaEsperar(destino, publicacoes, agora)
+    if (bloqueio) {
+      console.log(`  ${automacao.nome} → ${destino.nome}: ${bloqueio}`)
+      continue
+    }
+
+    const jaFoi = publicadosNoDestino(db, destino.id)
+    for (const chave of feitosNestaRodada) {
+      const [dId, itemId] = chave.split(':')
+      if (dId === destino.id && itemId) jaFoi.add(itemId)
+    }
+
+    const escolhida =
+      candidatas.find((i) => aprovadosPorVoce.has(i.oferta.itemId) && !jaFoi.has(i.oferta.itemId)) ??
+      candidatas.find((i) => !jaFoi.has(i.oferta.itemId))
+
+    if (!escolhida) {
+      console.log(`  ${automacao.nome} → ${destino.nome}: tudo que serve já foi publicado aqui`)
+      continue
+    }
+
+    const ok = await publicar(destino, escolhida, `${automacao.nome} → `, automacao.id)
+    if (ok) enviouAlgo = true
+  }
+
+  if (!enviouAlgo) continue
 }
 
 db.close()
@@ -162,7 +189,12 @@ console.log(seco ? 'Simulação encerrada — nada enviado.' : `Rodada encerrada
 
 // ─── Auxiliares ──────────────────────────────────────────────────
 
-async function publicar(destino: Destino, item: OfertaPontuada, prefixo: string): Promise<boolean> {
+async function publicar(
+  destino: Destino,
+  item: OfertaPontuada,
+  prefixo: string,
+  automacaoId?: string,
+): Promise<boolean> {
   const rotulo = `${item.oferta.titulo.slice(0, 44)} · R$ ${item.ganhoReais.toFixed(2)}`
 
   let link = linkSalvo(db, item.oferta.itemId, etiqueta)
@@ -212,7 +244,7 @@ async function publicar(destino: Destino, item: OfertaPontuada, prefixo: string)
     return false
   }
 
-  registrarPublicacao(db, item.oferta.itemId, destino.id, item.oferta.precoAtual)
+  registrarPublicacao(db, item.oferta.itemId, destino.id, item.oferta.precoAtual, automacaoId)
   registrarEvento(db, 'info', 'motor', `publicado em ${destino.nome}`, rotulo)
   publicados++
   console.log(`  ${prefixo}${destino.nome}: publicado → ${rotulo}`)

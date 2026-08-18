@@ -197,3 +197,58 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 .evento .nivel-erro { color: var(--vermelho); font-weight: 600; font-size: 12px; }
 .evento .nivel-info { color: var(--fraco); font-size: 12px; }
 .evento .detalhe { color: var(--fraco); font-size: 12px; }
+
+/* ─── Layout com navegação lateral ─── */
+.app { display: flex; min-height: 100vh; }
+.lateral {
+  width: 210px; flex-shrink: 0; background: #2D2D2D; color: #EDEDED;
+  display: flex; flex-direction: column; padding: 18px 0;
+  position: sticky; top: 0; height: 100vh;
+}
+.logo { margin: 0 20px 22px; font-size: 17px; font-weight: 700; letter-spacing: -.02em; }
+.logo span { color: var(--amarelo); }
+.lateral nav { display: flex; flex-direction: column; gap: 2px; padding: 0 10px; }
+.item {
+  border: 0; background: transparent; color: rgba(255,255,255,.72); cursor: pointer;
+  font: inherit; text-align: left; padding: 9px 12px; border-radius: 5px;
+}
+.item:hover { background: rgba(255,255,255,.08); color: #fff; }
+.item.ativa { background: var(--amarelo); color: #333; font-weight: 600; }
+.rodape-lateral { margin-top: auto; padding: 0 20px; font-size: 12px; color: rgba(255,255,255,.4); }
+.area { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+/* margin:auto herdado do layout de abas fazia o main ENCOLHER até o conteúdo
+   dentro do flex column, em vez de esticar. Zerar a margem é o que corrige. */
+.area main { max-width: none; margin: 0; width: 100%; padding: 22px 26px 60px; }
+.area .acoes-interna { max-width: none; margin: 0; }
+.area .log { max-width: none; margin: 0; }
+
+/* Início: checklist + métricas */
+.passos { display: grid; gap: 8px; margin-bottom: 26px; }
+.passo {
+  background: var(--branco); border-radius: 6px; box-shadow: var(--sombra);
+  padding: 13px 16px; display: flex; align-items: center; gap: 14px;
+}
+.passo .marca {
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center; font-size: 12px; font-weight: 700;
+}
+.passo.feito .marca { background: var(--verde); color: #fff; }
+.passo.pendente .marca { background: #EEE; color: var(--fraco); }
+.passo .texto { flex: 1; }
+.passo .titulo-passo { font-weight: 600; font-size: 14px; }
+.passo .detalhe-passo { font-size: 12px; color: var(--fraco); }
+
+.metricas { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.metrica { background: var(--branco); border-radius: 6px; box-shadow: var(--sombra); padding: 14px 16px; }
+.metrica .rotulo { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--fraco); }
+.metrica .valor { font-size: 26px; font-weight: 700; letter-spacing: -.02em; margin-top: 4px; }
+.metrica.alerta .valor { color: var(--vermelho); }
+
+@media (max-width: 720px) {
+  .app { flex-direction: column; }
+  .lateral { width: auto; height: auto; position: static; padding: 12px 0; }
+  .lateral nav { flex-direction: row; overflow-x: auto; }
+  .item { white-space: nowrap; }
+  .rodape-lateral { display: none; }
+  .area main { padding: 16px; }
+}

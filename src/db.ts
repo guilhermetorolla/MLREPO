@@ -85,6 +85,28 @@ function migrar(db: Database.Database): void {
       ativo             INTEGER NOT NULL DEFAULT 1
     );
 
+    -- Automação: quando enviar e o que enviar. O destino continua guardando
+    -- o teto de proteção do grupo, para não depender de quantas automações
+    -- mirem nele.
+    CREATE TABLE IF NOT EXISTS automacoes (
+      id                TEXT PRIMARY KEY,
+      nome              TEXT NOT NULL,
+      descricao         TEXT,
+      ativa             INTEGER NOT NULL DEFAULT 1,
+      dias_semana       TEXT NOT NULL DEFAULT '[]',
+      janelas           TEXT NOT NULL DEFAULT '[]',
+      intervalo_minutos INTEGER NOT NULL DEFAULT 60,
+      limite_diario     INTEGER NOT NULL DEFAULT 10,
+      filtro            TEXT NOT NULL DEFAULT '{}',
+      criado_em         TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS automacao_destinos (
+      automacao_id TEXT NOT NULL,
+      destino_id   TEXT NOT NULL,
+      PRIMARY KEY (automacao_id, destino_id)
+    );
+
     -- Diário do motor: o que deu certo e o que falhou, com o erro cru.
     -- Sem isso o motor automático pode passar dias quebrado em silêncio.
     CREATE TABLE IF NOT EXISTS eventos (
@@ -111,6 +133,11 @@ function migrar(db: Database.Database): void {
   const colunas = (db.prepare('PRAGMA table_info(ofertas)').all() as { name: string }[]).map((c) => c.name)
   if (!colunas.includes('imagem_id')) {
     db.exec('ALTER TABLE ofertas ADD COLUMN imagem_id TEXT')
+  }
+
+  const colPub = (db.prepare('PRAGMA table_info(publicacoes)').all() as { name: string }[]).map((c) => c.name)
+  if (!colPub.includes('automacao_id')) {
+    db.exec('ALTER TABLE publicacoes ADD COLUMN automacao_id TEXT')
   }
 }
 
@@ -233,10 +260,12 @@ export function registrarPublicacao(
   itemId: string,
   canal: string,
   precoNaHora: number,
+  automacaoId?: string,
 ): void {
   db.prepare(
-    'INSERT OR REPLACE INTO publicacoes (item_id, canal, publicado_em, preco_na_hora) VALUES (?, ?, ?, ?)',
-  ).run(itemId, canal, new Date().toISOString(), precoNaHora)
+    `INSERT OR REPLACE INTO publicacoes (item_id, canal, publicado_em, preco_na_hora, automacao_id)
+     VALUES (?, ?, ?, ?, ?)`,
+  ).run(itemId, canal, new Date().toISOString(), precoNaHora, automacaoId ?? null)
 }
 
 export function ofertasSalvas(db: Database.Database): Oferta[] {
@@ -457,4 +486,99 @@ export function ofertaPorId(db: Database.Database, itemId: string): Oferta | und
     categoria: l.categoria ?? undefined,
     imagemId: l.imagemId ?? undefined,
   }
+}
+
+// ─── Automações ──────────────────────────────────────────────────
+
+import type { Automacao } from './motor/automacao.ts'
+
+export function automacoes(db: Database.Database): Automacao[] {
+  const linhas = db
+    .prepare(
+      `SELECT id, nome, descricao, ativa, dias_semana AS diasSemana, janelas,
+              intervalo_minutos AS intervaloMinutos, limite_diario AS limiteDiario, filtro
+       FROM automacoes ORDER BY nome`,
+    )
+    .all() as any[]
+
+  const vinculos = db.prepare('SELECT automacao_id AS a, destino_id AS d FROM automacao_destinos').all() as {
+    a: string
+    d: string
+  }[]
+
+  return linhas.map((l) => ({
+    id: l.id,
+    nome: l.nome,
+    descricao: l.descricao ?? undefined,
+    ativa: Boolean(l.ativa),
+    diasSemana: JSON.parse(l.diasSemana),
+    janelas: JSON.parse(l.janelas),
+    intervaloMinutos: l.intervaloMinutos,
+    limiteDiario: l.limiteDiario,
+    filtro: JSON.parse(l.filtro),
+    destinos: vinculos.filter((v) => v.a === l.id).map((v) => v.d),
+  }))
+}
+
+export function salvarAutomacao(db: Database.Database, a: Automacao): void {
+  db.transaction(() => {
+    db.prepare(
+      `INSERT INTO automacoes (id, nome, descricao, ativa, dias_semana, janelas,
+                               intervalo_minutos, limite_diario, filtro, criado_em)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         nome = excluded.nome, descricao = excluded.descricao, ativa = excluded.ativa,
+         dias_semana = excluded.dias_semana, janelas = excluded.janelas,
+         intervalo_minutos = excluded.intervalo_minutos, limite_diario = excluded.limite_diario,
+         filtro = excluded.filtro`,
+    ).run(
+      a.id,
+      a.nome,
+      a.descricao ?? null,
+      a.ativa ? 1 : 0,
+      JSON.stringify(a.diasSemana),
+      JSON.stringify(a.janelas),
+      a.intervaloMinutos,
+      a.limiteDiario,
+      JSON.stringify(a.filtro),
+      new Date().toISOString(),
+    )
+    db.prepare('DELETE FROM automacao_destinos WHERE automacao_id = ?').run(a.id)
+    const vincular = db.prepare('INSERT INTO automacao_destinos (automacao_id, destino_id) VALUES (?, ?)')
+    for (const d of a.destinos) vincular.run(a.id, d)
+  })()
+}
+
+export function apagarAutomacao(db: Database.Database, id: string): void {
+  db.transaction(() => {
+    db.prepare('DELETE FROM automacao_destinos WHERE automacao_id = ?').run(id)
+    db.prepare('DELETE FROM automacoes WHERE id = ?').run(id)
+  })()
+}
+
+/** Última execução e total de hoje, por automação. Base da agenda. */
+export function estatisticaAutomacao(
+  db: Database.Database,
+  automacaoId: string,
+  hojeLocal: string,
+): { ultima?: Date; enviadosHoje: number } {
+  const u = db
+    .prepare('SELECT MAX(publicado_em) AS q FROM publicacoes WHERE automacao_id = ?')
+    .get(automacaoId) as { q: string | null }
+
+  const linhas = db
+    .prepare('SELECT publicado_em AS q FROM publicacoes WHERE automacao_id = ?')
+    .all(automacaoId) as { q: string }[]
+
+  const enviadosHoje = linhas.filter(
+    (l) =>
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date(l.q)) === hojeLocal,
+  ).length
+
+  return { ultima: u.q ? new Date(u.q) : undefined, enviadosHoje }
 }

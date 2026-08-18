@@ -8,33 +8,39 @@
 </head>
 <body>
 
-<header class="barra">
-  <div class="barra-interna">
-    <p class="marca">Painel de ofertas</p>
-    <nav class="abas">
-      <button class="aba ativa" data-tela="fila">Fila</button>
-      <button class="aba" data-tela="agenda">Programados</button>
-      <button class="aba" data-tela="destinos">Destinos</button>
-      <button class="aba" data-tela="motor">Motor</button>
-      <button class="aba" data-tela="eventos">Eventos <span id="badge-erros" class="badge oculto"></span></button>
+<div class="app">
+  <aside class="lateral">
+    <p class="logo">Ofertas<span>ML</span></p>
+    <nav>
+      <button class="item ativa" data-tela="inicio">Início</button>
+      <button class="item" data-tela="fila">Fila de ofertas</button>
+      <button class="item" data-tela="automacoes">Automações</button>
+      <button class="item" data-tela="destinos">Destinos</button>
+      <button class="item" data-tela="agenda">Programados</button>
+      <button class="item" data-tela="motor">Motor</button>
+      <button class="item" data-tela="eventos">Eventos <span id="badge-erros" class="badge oculto"></span></button>
     </nav>
-    <span class="relogio" id="relogio"></span>
-  </div>
-</header>
+    <div class="rodape-lateral">
+      <span id="relogio"></span>
+    </div>
+  </aside>
 
-<section class="acoes-barra">
-  <div class="acoes-interna">
-    <button class="botao" data-acao-motor="coletar">Buscar ofertas no ML</button>
-    <button class="botao-fraco" data-acao-motor="links">Gerar links</button>
-    <button class="botao-fraco" data-acao-motor="simular">Simular rodada</button>
-    <button class="botao-fraco" data-acao-motor="publicar">Publicar agora</button>
-    <button class="botao-fraco" data-acao-motor="site">Regerar site</button>
-    <span id="estado-tarefa" class="estado-tarefa"></span>
-  </div>
-  <pre id="log-tarefa" class="log oculto"></pre>
-</section>
+  <div class="area">
+    <section class="acoes-barra">
+      <div class="acoes-interna">
+        <button class="botao" data-acao-motor="coletar">Buscar ofertas no ML</button>
+        <button class="botao-fraco" data-acao-motor="links">Gerar links</button>
+        <button class="botao-fraco" data-acao-motor="simular">Simular rodada</button>
+        <button class="botao-fraco" data-acao-motor="publicar">Publicar agora</button>
+        <button class="botao-fraco" data-acao-motor="site">Regerar site</button>
+        <span id="estado-tarefa" class="estado-tarefa"></span>
+      </div>
+      <pre id="log-tarefa" class="log oculto"></pre>
+    </section>
 
-<main id="conteudo"><p class="carregando">Carregando…</p></main>
+    <main id="conteudo"><p class="carregando">Carregando…</p></main>
+  </div>
+</div>
 
 <dialog id="dlg-token">
   <form method="dialog" class="cartao-dialogo">
@@ -51,7 +57,7 @@
     <p class="ajuda" id="agendar-titulo"></p>
     <label>Destino <select id="agendar-destino"></select></label>
     <label>Quando <input type="datetime-local" id="agendar-quando"></label>
-    <p class="ajuda">Post programado ignora a régua de corte, mas respeita o intervalo mínimo do destino.</p>
+    <p class="ajuda">Post programado ignora o filtro, mas respeita o intervalo mínimo do destino.</p>
     <div class="acoes-dialogo">
       <button value="cancelar" class="botao-fraco">Cancelar</button>
       <button value="ok" class="botao">Programar</button>

@@ -172,3 +172,31 @@ apenas passaram no corte.
 
 Destinos passaram a viver no banco (editáveis pela tela). O `destinos.json` continua servindo
 de semente na primeira execução.
+
+## Automações
+
+Uma **automação** decide *quando* enviar e *o que* enviar; o **destino** decide *para onde* e
+guarda o teto de proteção do grupo. Separar os dois permite ter "Eletrônicos de manhã" e
+"Moda à noite" apontando para os mesmos grupos com regras diferentes — e o grupo continua
+protegido por limite próprio, não importa quantas automações mirem nele.
+
+Cada automação tem:
+
+- **dias da semana** (vazio = todos), **janelas** de horário, **intervalo** entre execuções e
+  **teto diário** próprio
+- **filtro de conteúdo**: ganho mínimo em reais, nota, volume de vendas, faixa de preço,
+  somente comissão extra, e palavras-chave para incluir ou excluir pelo título
+
+A tela mostra, para cada automação, **quantas ofertas da base passam no filtro dela agora** —
+é o número que revela filtro apertado demais.
+
+O motor roda em duas fases: agendamentos manuais primeiro (ignoram o filtro, respeitam o
+intervalo do destino), depois cada automação liberada pela sua própria agenda.
+
+## O painel
+
+Navegação lateral com Início, Fila, Automações, Destinos, Programados, Motor e Eventos.
+
+A tela **Início** é um checklist do que falta para o motor rodar sozinho (ofertas, links,
+destino, automação, Telegram), com botão de resolver em cada passo pendente, mais as métricas
+do dia.
